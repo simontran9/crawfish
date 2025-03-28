@@ -67,7 +67,7 @@ const pi: Float = 3.14;
 ```
 
 **Booleans**
-- A `True` or `False` value.
+- A `True` or `False` value, 1 byte in size.
 - Pass by value
 - Zero value: `False`
 ```
@@ -376,6 +376,7 @@ interface <interface name>[T] {
 Abstract data types are implemented with the most common operations — access, insertion, deletion, and sometimes, updates.
 
 - `ArrayList`: a list backed by a dynamic array
+- `LinkedList`: a list backed by a linked list
 - `ArrayStack`: a stack backed by a dynamic array
 - `ArrayQueue`: a queue backed by a circular dynamic array
 - `HeapPriorityQueue`: a priority queue backed by a binary heap
