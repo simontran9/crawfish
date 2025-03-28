@@ -1,10 +1,10 @@
 # A tour of crawfish
 
-> A language which attempts to:
-> - Be Fast and simple like Go
-> - Be Readable like Python
-> - Be high-level like Java
-> - Incorporate interesting ideas from Rust
+> A language
+> - As *fast* and simple like Go
+> - As *Readable* like Python
+> - *High-level* like Java
+> - A bit *interesting* Rust
 
 ## Usage
 
@@ -50,7 +50,8 @@ For more complicated compilation, Makefiles are the recommended tool.
 
 ### Primitive data types
 
-**Integers**
+#### Integers
+
 - A 32-bit signed integer
 - Pass by value
 - Zero value: `0`
@@ -58,7 +59,8 @@ For more complicated compilation, Makefiles are the recommended tool.
 var x: Int = 5;
 ```
 
-**Floating-point numbers**
+#### Floating-point numbers
+
 - A 64-bit IEEE 754 floating point.
 - Pass by value
 - Zero value: `0`
@@ -66,7 +68,8 @@ var x: Int = 5;
 const pi: Float = 3.14;
 ```
 
-**Booleans**
+#### Booleans
+
 - A `True` or `False` value, 1 byte in size.
 - Pass by value
 - Zero value: `False`
@@ -75,7 +78,8 @@ var ready: Bool = False;
 var happy: Bool = True;
 ```
 
-**Characters**
+#### Characters
+
 - A 32-bit immutable character enclosed in `'`.
 - Pass by value
 - Zero value:  `'\x00'`
@@ -83,7 +87,7 @@ var happy: Bool = True;
 var c: Char = 's';
 ```
 
-**Strings**
+#### Strings
 - A heap-allocated immutable text enclosed in `"` for single-lined strings, or `"""` for multi-line strings.
 - Pass by reference
 - Zero value: `""`
@@ -91,7 +95,8 @@ var c: Char = 's';
 var name: String = "Bob";
 ```
 
-**Fixed-length arrays**
+#### Fixed-length arrays
+
 - A heap-allocated fixed-length array of specified type, declared and initialized on the RHS of the equals sign as `[<single populating value>; <length>]`, or `[<element 1>, <element 2>, ..., <element N>]`, and indexing via `<array name>[<index>]`
 - Pass by reference
 - Zero value: the zero value for the array's type i.e. the zero of the type for a single element
@@ -103,17 +108,26 @@ var fruits: Array[String] = ["apple", "banana", "blueberry"];
 const fruit: String = fruits[2] // "bluberry"
 ```
 
-**Tuples**
+#### Tuples
+
 - A data structure containing values of specified type
 - Pass by value
 - Zero value: the zero value depends on the type of each element in the tuple
 
 ```
-var random: Tuple[String, Float, Int] = ("", 0.0, 0); // initialize to all zero values
-```
+// initialize to all zero values
+const random: Tuple[String, Float, Int] = ("", 0.0, 0);
 
-```
-var stuff: Tuple[Int, Char, Float] = (2, 'k', 8.3);
+// tuple initialized with different elements
+const stuff: Tuple[Int, Char, Float] = (2, 'k', 8.3);
+
+// destructering
+const (x, y, z) = stuff;
+
+// accessing through indexing
+const first_val = stuff[0];
+const second_val = stuff[1];
+const third_val = stuff[2];
 ```
 
 > [!NOTE]
@@ -291,7 +305,8 @@ enum <enum name> {
 
 ### Structure
 
-**Plain-old structure definition**
+#### Plain-old structure definition
+
 ```
 struct <struct name> {
     <field name>: <type>,
@@ -300,7 +315,8 @@ struct <struct name> {
 }
 ```
 
-**Associated functions with structures**
+#### Associated functions with structures
+
 ```
 impl <struct name> {
     // acts like static fields
@@ -310,7 +326,8 @@ impl <struct name> {
 }
 ```
 
-**Implementing an interface**
+#### Implementing an interface
+
 ```
 struct <struct name> {
     <field name>: <type>,
@@ -344,6 +361,8 @@ interface <interface name>[T] {
 ```
 
 ## Import and package
+
+TO DO
 
 ## Built-in functions
 
