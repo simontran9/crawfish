@@ -392,16 +392,20 @@ TO DO
 
 ### Containers
 
-Abstract data types are implemented with the most common operations — access, insertion, deletion, and sometimes, updates.
+Abstract data types are supported with the most common operations — access, insertion, deletion, and sometimes, updates.
 
 - `ArrayList`: a list backed by a dynamic array
-- `LinkedList`: a list backed by a linked list
+- `SinglyLinkedList`: a list backed by a singly linked list
+- `DoublyLinkedList`: a list backed by a doubly linked list
 - `ArrayStack`: a stack backed by a dynamic array
+- `LinkedStack`: a stack backed by a singly linked list
 - `ArrayQueue`: a queue backed by a circular dynamic array
-- `HeapPriorityQueue`: a priority queue backed by a binary heap
+- `LinkedQueue`: a queue backed by a singly linked list
+- `MinHeapPriorityQueue`: a priority queue backed by a min binary heap
+- `MaxHeapPriorityQueue`: a priority queue backed by a max binary heap
 - `HashMap`: a map backed by a hash table
 - `HashSet`: a set backed by a hash table
-- `RBTreeSorderedMap`: a ordered map backed by a Red-Black Tree
+- `RBTreeOrderedMap`: a ordered map backed by a Red-Black Tree
 - `RBTreeOrderedSet`: an ordered set backed by a Red-Black Tree
 
 ### Algorithms
