@@ -65,7 +65,7 @@ var x: Int = 5;
 - Pass by value
 - Zero value: `0`
 ```
-const pi: Float = 3.14;
+var pi: Float = 3.14;
 ```
 
 #### Booleans
@@ -88,6 +88,7 @@ var c: Char = 's';
 ```
 
 #### Strings
+
 - A heap-allocated immutable text enclosed in `"` for single-lined strings, or `"""` for multi-line strings.
 - Pass by reference
 - Zero value: `""`
@@ -105,7 +106,7 @@ var nums: Array[Int] = [0; 5]; // initialize the array to all zero values of len
 ```
 ```
 var fruits: Array[String] = ["apple", "banana", "blueberry"];
-const fruit: String = fruits[2] // "bluberry"
+var fruit: String = fruits[2] // "bluberry"
 ```
 
 #### Tuples
@@ -116,36 +117,33 @@ const fruit: String = fruits[2] // "bluberry"
 
 ```
 // initialize to all zero values
-const random: Tuple[String, Float, Int] = ("", 0.0, 0);
+var random: Tuple[String, Float, Int] = ("", 0.0, 0);
 
 // tuple initialized with different elements
-const stuff: Tuple[Int, Char, Float] = (2, 'k', 8.3);
+var stuff: Tuple[Int, Char, Float] = (2, 'k', 8.3);
 
 // destructering
-const (x, y, z) = stuff;
+var (x, y, z) = stuff;
 
 // accessing through indexing
-const first_val = stuff[0];
-const second_val = stuff[1];
-const third_val = stuff[2];
+var first_val = stuff[0];
+var second_val = stuff[1];
+var third_val = stuff[2];
 ```
 
 > [!NOTE]
-> All variables and constants must be declared and initialized.
-> Initializing with the zero value is similar to other languages which implicitly initializes
-> a variable or constant whenever you only declare it.
+> All variables and varants must be declared and initialized. Initializing with the zero value is similar to other languages which implicitly initializes a variable or varant whenever you only declare it.
 
-### Variables and constants
+### Variables
 
-**Declaration and initialization**
+#### Declaration and initialization
+
 ```
 var <variable name>: <type> = ...;
 ```
-```
-const <constant name>: <type> = ...;
-```
 
-**Variable swapping pattern**
+#### Variable swapping pattern
+
 ```
 <first variable>, <second variable> = <second variable>, <first variable>;
 ```
@@ -205,7 +203,7 @@ const <constant name>: <type> = ...;
 
 ### Conditional statements
 
-**Regular usage**
+#### Regular usage**
 ```
 if <boolean condition> {
     ...
@@ -216,7 +214,7 @@ if <boolean condition> {
 }
 ```
 
-**Ternary-like usage (i.e. conditional statements as expressions)**
+#### Ternary-like usage (i.e. conditional statements as expressions)**
 ```
 func check(x: int) -> String {
     return if x == 2 { "Nice" } else { "No!" };
@@ -251,7 +249,7 @@ for <item> in <range> {
 ### Structural pattern matching
 
 ```
-match <variable or constant> {
+match <variable or varant> {
     ... => ...,
     ... | ... | ... => ...,
     ... if <condition> => ...,
@@ -320,7 +318,7 @@ struct <struct name> {
 ```
 impl <struct name> {
     // acts like static fields
-    const <static name>: <type> = <value>;
+    var <static name>: <type> = <value>;
 
     // acts like OOP methods
 }
@@ -344,7 +342,7 @@ impl <interface name> for <struct name> {
 
 ```
 func <function name>[T](<parameter name>: T) -> T {
-    <var or const> <container name>: T = ...;
+    <var or var> <container name>: T = ...;
 }
 ```
 
@@ -413,23 +411,5 @@ Abstract data types are supported with the most common operations — access, in
 - `sort`: driftsort stable sorting algorithm
 - `binary_search`: binary search algorithm
 
-### Threads
 
-Crawfish supports operating systems threads, called `os_thread`, and green threads, called `green_thread`.
-
-### Synchronization primitives
-
-**`MutexLock`**
-
-**`CondVar`**
-
-**`Semaphore`**
-
-**`RwLock`**
-
-**`Atomic`**
-
-**`Channel`**
-
-### Inter-process communication mechanisms
 
