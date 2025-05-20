@@ -1,47 +1,59 @@
-// pub struct LexicalAnalyzer<'a> {
-//     source: &'a str,
-//     current_index: usize,
-//     read_index: usize,
-//     current_char: char,
-// }
+use std::{iter::Peekable, str::CharIndices};
 
-// impl<'a> Scanner<'a> {
-//     const BOM: &str = "\u{FEFF}";
-//     const ASCII_NULL: char = '\0';
+use crate::front_end::token::{Token, TokenKind, Span};
 
-//     /// Creates and returns a scanner object
-//     pub fn new(source: &'a str) -> Self {
-//         let start_index = if source.starts_with(Self::BOM) {
-//             Self::BOM.len()
-//         } else {
-//             0
-//         };
+enum TokenizerError {
+    InvalidCharacter,
+}
 
-//         let mut char_iter = source[start_index..].char_indices();
-//         let (offset, current_char) =
-//             char_iter.next().unwrap_or((0, Self::ASCII_NULL));
-//         let read_index = start_index + offset + current_char.len_utf8();
+/// Tokenizer
+pub struct Tokenizer<'a> {
+    // Original source code
+    source: &'a str,
+    // Iterable source code
+    chars: Peekable<CharIndices<'a>>,
+}
 
-//         Scanner {
-//             source,
-//             current_index: start_index,
-//             read_index,
-//             current_char,
-//         }
-//     }
+// TODO: handle const BOM: &str = "\u{FEFF}";
+// TODO: implement regular string
+// TODO: implement multi string
+// TODO: implement char
+impl<'a> Tokenizer<'a> {
+    /// Returns a tokenizer iterator
+    pub fn new(source: &'a str) -> Self {
+        Self {
+            source,
+            chars: source.char_indices().peekable(),
+        }
+    }
 
-// Recturns the next token
-// pub fn next(self: *Scanner) Token {
-//     self.skip_whitespace();
-//     var token: Token = undefined;
-//     switch (self.current_char) {
-//         '(' => token = Token.init(Token.TokenType.LeftCircleBrack, null),
-//         ')' => token = Token.init(Token.TokenType.RightCircleBrack, null),
-//         '{' => token = Token.init(Token.TokenType.LeftCurlyBrack, null),
-//         '}' => token = Token.init(Token.TokenType.RightCurlyBrack, null),
-//         '[' => token = Token.init(Token.TokenType.LeftSquareBrack, null),
-//         ']' => token = Token.init(Token.TokenType.RightSquareBrack, null),
-//         '?' => token = Token.init(Token.TokenType.QuestionMark, null),
+    /// Returns the next token
+    pub fn next(&mut self) -> Result<Token, TokenizerError> {
+        let (token_kind, start) = self.determine_token_kind();
+        let end = 2;
+        Ok(Token::new(token_kind, Span::new(start, end)))
+    }
+
+    fn determine_token_kind(&mut self) -> Result<(TokenKind, usize), TokenizerError> {
+        while let Some((start, c)) = self.chars.next() {
+            match c {
+                c if c.is_whitespace() => continue,
+                '(' => return Ok((TokenKind::LeftCircleBracket, start)),
+                ')' => return Ok((TokenKind::RightCircleBracket, start)),
+                '{' => return Ok((TokenKind::LeftCurlyBracket, start)),
+                '[' => return Ok((TokenKind::LeftSquareBracket, start)),
+                ']' => return Ok((TokenKind::RightSquareBracket, start)),
+                // _ => return error then match in `next()`
+            }
+        }
+        Ok((TokenKind::EOF, self.source.len()))
+    }
+}
+
+// current_index: usize,
+// read_index: usize,
+// current_char: Option<char>,
+
 //         '&' => {
 //             if (self.peek() == '=') {
 //                 self.read();
@@ -207,13 +219,6 @@
 //     return token;
 // }
 
-// skips whitespace or \t and \r escape sequences
-// fn skip_whitespace(self: *Scanner) void {
-//     while (self.current_char == ' ' or self.current_char == '\n' or self.current_char == '\t' or self.current_char == '\r') {
-//         self.read();
-//     }
-// }
-
 // skips line comment
 // fn skip_line_comment(self: *Scanner) void {
 //     while (self.current_char != '\n') {
@@ -249,6 +254,20 @@
 //     return self.source[initial_index .. self.current_index + 1];
 // }
 
+// fn lex_identifier(&mut Self) -> Token {
+//     let mut ident = String::new();
+
+//     while let Some(&c) = self.peek() {
+//         if c.isalphanumeric() || c == '_' {
+//             ident.push(self.read().unwrap());
+//         } else {
+//             break;
+//         }
+//     }
+
+//     Token::Identifier(ident)
+// }
+
 // reads the supposed float
 // fn read_float(self: *Scanner) ?[]const u8 {
 //     const initial_index = self.current_index;
@@ -279,3 +298,34 @@
 //     return self.source[initial_index .. self.current_index + 1];
 // }
 // }
+
+fn match_keyword(ident: &str) -> TokenKind {
+    match ident {
+        "and" => TokenKind::And,
+        "break" => TokenKind::Break,
+        "continue" => TokenKind::Continue,
+        "else" => TokenKind::Else,
+        "enum" => TokenKind::Enum,
+        "defer" => TokenKind::Defer,
+        "False" => TokenKind::False,
+        "func" => TokenKind::Func,
+        "for" => TokenKind::For,
+        "if" => TokenKind::If,
+        "impl" => TokenKind::Impl,
+        "import" => TokenKind::Import,
+        "in" => TokenKind::In,
+        "interface" => TokenKind::Interface,
+        "match" => TokenKind::Match,
+        "None" => TokenKind::None,
+        "or" => TokenKind::Or,
+        "package" => TokenKind::Package,
+        "pub" => TokenKind::Pub,
+        "return" => TokenKind::Return,
+        "struct" => TokenKind::Struct,
+        "this" => TokenKind::This,
+        "True" => TokenKind::True,
+        "var" => TokenKind::Var,
+        "while" => TokenKind::While,
+        _ => TokenKind::Identifier
+    }
+}

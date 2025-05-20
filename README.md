@@ -35,9 +35,9 @@ export PATH=$PATH:<path to the crawfish compiler executable>
 
 ## Usage
 
-- Language tour: Read `docs/language_tour.md`
+- Language tour: `docs/language_tour.md`
 - Compiler benchmarks: `docs/benchmarks.md`
-- Design: `docs/design.md`
+- Compiler design: `docs/design.md`
 
 ## Credits
 

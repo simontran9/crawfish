@@ -1,19 +1,33 @@
-struct Token<'a> {
-    token_type: TokenType,
-    value: &'a str,
-    loc: Location,
+/// Token type
+pub struct Token {
+    kind: TokenKind,
+    span: Span,
 }
 
-enum TokenType {
+/// The token's type.
+/// The main categories are:
+/// - Identifiers
+/// - Literals
+/// - Delimiters
+/// - Operators
+/// - Keywords
+/// - Special token (i.e. EOF)
+pub enum TokenKind {
+    // NOTE:
+    // We could have easily attached the lexemes to a variant (e.g. Identifier(String)),
+    // but this cause the enum to take up quite some space, since the size of an enum is
+    // the size of its largest variant.
+    // Instead, we will store the lexeme as a slice for identifiers and literals.
+
     // Identifier
-    Identifier(String),
+    Identifier,
 
     // Literals
-    IntegerLiteral(String),
-    FloatLiteral(String),
-    CharLiteral(String),
-    StringLiteral(String),
-    MultilineStringLiteral(String),
+    IntegerLiteral,
+    FloatLiteral,
+    CharLiteral,
+    StringLiteral,
+    MultilineStringLiteral,
 
     // Delimiters
     LeftCircleBracket,
@@ -65,7 +79,6 @@ enum TokenType {
 
     // Keywords
     And,
-    As,
     Break,
     Continue,
     Else,
@@ -91,45 +104,55 @@ enum TokenType {
     Var,
     While,
 
-    // Special tokens
-    Eof,
-    Illegal,
+    // Special token
+    EOF,
 }
 
-struct Location {
-    line: usize,
-    column: usize
+/// The location of the token within the source, bounded by an inclusive `start`, and a exclusive `end`.
+/// Also keeps track of the line and the column.
+pub struct Span {
+    // inclusive
+    start: usize,
+    // exclusive
+    end: usize,
 }
 
-// lazy_static! {
-//     pub static ref KEYWORD_MAP: HashMap<&'static str, TokenType> = {
-//         let mut m = HashMap::new();
-//         m.insert("and", TokenType::And);
-//         m.insert("as", TokenType::As);
-//         m.insert("break", TokenType::Break);
-//         m.insert("continue", TokenType::Continue);
-//         m.insert("else", TokenType::Else);
-//         m.insert("enum", TokenType::Enum);
-//         m.insert("defer", TokenType::Defer);
-//         m.insert("False", TokenType::False);
-//         m.insert("func", TokenType::Func);
-//         m.insert("for", TokenType::For);
-//         m.insert("if", TokenType::If);
-//         m.insert("impl", TokenType::Impl);
-//         m.insert("import", TokenType::Import);
-//         m.insert("in", TokenType::In);
-//         m.insert("interface", TokenType::Interface);
-//         m.insert("match", TokenType::Match);
-//         m.insert("None", TokenType::None);
-//         m.insert("or", TokenType::Or);
-//         m.insert("package", TokenType::Package);
-//         m.insert("pub", TokenType::Pub);
-//         m.insert("return", TokenType::Return);
-//         m.insert("struct", TokenType::Struct);
-//         m.insert("this", TokenType::This);
-//         m.insert("True", TokenType::True);
-//         m.insert("var", TokenType::Var);
-//         m.insert("while", TokenType::While);
-//         m
-//     };
+// TODO: implement for span line and column for compiler errors. Here's an inspo from ungrammar:
+// impl Location {
+//     fn advance(&mut self, text: &str) {
+//         match text.rfind('\n') {
+//             Some(idx) => {
+//                 self.line += text.chars().filter(|&it| it == '\n').count(,
+//                 self.column = text[idx + 1..].chars().count(,
+//             }
+//             None => self.column += text.chars().count(),
+//         }
+//     }
 // }
+//https://github.com/rust-analyzer/ungrammar/blob/master/src/lexer.rs#L30
+impl Span {
+    /// Returns a span
+    pub fn new(start: usize, end: usize) -> Self {
+        Self {
+            start,
+            end,
+        }
+    }
+}
+
+impl Token {
+    /// Returns a token
+    pub fn new(kind: TokenKind, span: Span) -> Self {
+        Self {
+            kind,
+            span,
+        }
+    }
+
+    /// Lazily returns the lexeme as needed
+    pub fn lexeme<'a>(&self, source: &'a str) -> &'a str {
+        &source[self.span.start..self.span.end]
+    }
+}
+
+
