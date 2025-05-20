@@ -1,6 +1,9 @@
+//! Token and token-related data structures
+
 /// Token type
+#[derive(Debug)]
 pub struct Token {
-    kind: TokenKind,
+    pub kind: TokenKind,
     span: Span,
 }
 
@@ -12,6 +15,7 @@ pub struct Token {
 /// - Operators
 /// - Keywords
 /// - Special token (i.e. EOF)
+#[derive(Debug, PartialEq)]
 pub enum TokenKind {
     // NOTE:
     // We could have easily attached the lexemes to a variant (e.g. Identifier(String)),
@@ -109,7 +113,7 @@ pub enum TokenKind {
 }
 
 /// The location of the token within the source, bounded by an inclusive `start`, and a exclusive `end`.
-/// Also keeps track of the line and the column.
+#[derive(Debug)]
 pub struct Span {
     // inclusive
     start: usize,
@@ -117,36 +121,17 @@ pub struct Span {
     end: usize,
 }
 
-// TODO: implement for span line and column for compiler errors. Here's an inspo from ungrammar:
-// impl Location {
-//     fn advance(&mut self, text: &str) {
-//         match text.rfind('\n') {
-//             Some(idx) => {
-//                 self.line += text.chars().filter(|&it| it == '\n').count(,
-//                 self.column = text[idx + 1..].chars().count(,
-//             }
-//             None => self.column += text.chars().count(),
-//         }
-//     }
-// }
-//https://github.com/rust-analyzer/ungrammar/blob/master/src/lexer.rs#L30
 impl Span {
     /// Returns a span
     pub fn new(start: usize, end: usize) -> Self {
-        Self {
-            start,
-            end,
-        }
+        Self { start, end }
     }
 }
 
 impl Token {
     /// Returns a token
     pub fn new(kind: TokenKind, span: Span) -> Self {
-        Self {
-            kind,
-            span,
-        }
+        Self { kind, span }
     }
 
     /// Lazily returns the lexeme as needed
@@ -154,5 +139,3 @@ impl Token {
         &source[self.span.start..self.span.end]
     }
 }
-
-

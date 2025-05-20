@@ -12,5 +12,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Run compilation check
+        run: cargo check
       - name: Run unit tests
         run: cargo test

@@ -1,16 +1,15 @@
+use crate::front_end::token::{Span, Token, TokenKind};
 use std::{iter::Peekable, str::CharIndices};
 
-use crate::front_end::token::{Token, TokenKind, Span};
-
-enum TokenizerError {
+// TODO: maybe rename to syntax error?
+#[derive(Debug)]
+pub enum TokenizerError {
     InvalidCharacter,
 }
 
 /// Tokenizer
 pub struct Tokenizer<'a> {
-    // Original source code
     source: &'a str,
-    // Iterable source code
     chars: Peekable<CharIndices<'a>>,
 }
 
@@ -29,91 +28,105 @@ impl<'a> Tokenizer<'a> {
 
     /// Returns the next token
     pub fn next(&mut self) -> Result<Token, TokenizerError> {
-        let (token_kind, start) = self.determine_token_kind();
-        let end = 2;
-        Ok(Token::new(token_kind, Span::new(start, end)))
-    }
-
-    fn determine_token_kind(&mut self) -> Result<(TokenKind, usize), TokenizerError> {
         while let Some((start, c)) = self.chars.next() {
             match c {
                 c if c.is_whitespace() => continue,
-                '(' => return Ok((TokenKind::LeftCircleBracket, start)),
-                ')' => return Ok((TokenKind::RightCircleBracket, start)),
-                '{' => return Ok((TokenKind::LeftCurlyBracket, start)),
-                '[' => return Ok((TokenKind::LeftSquareBracket, start)),
-                ']' => return Ok((TokenKind::RightSquareBracket, start)),
-                // _ => return error then match in `next()`
+                '(' => {
+                    return Ok(Token::new(
+                        TokenKind::LeftCircleBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                ')' => {
+                    return Ok(Token::new(
+                        TokenKind::RightCircleBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '{' => {
+                    return Ok(Token::new(
+                        TokenKind::LeftCurlyBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '[' => {
+                    return Ok(Token::new(
+                        TokenKind::LeftSquareBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                ']' => {
+                    return Ok(Token::new(
+                        TokenKind::RightSquareBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '&' => {
+                        if let Some(&(eq_idx, '=')) = self.chars.peek() {
+                            self.chars.next();
+                            return Ok(Token::new(TokenKind::AmpersandEqual, Span::new(start, eq_idx + 1)));
+                        }
+                        return Ok(Token::new(TokenKind::Ampersand, Span::new(start, start + c.len_utf8())));
+                    }
+                '~' => return Ok(Token::new(TokenKind::Tilde, Span::new(start, start + c.len_utf8()))),
+                '|' => {
+                        if let Some(&(eq_idx, '=')) = self.chars.peek() {
+                            self.chars.next();
+                            return Ok(Token::new(TokenKind::PipeEqual, Span::new(start, eq_idx + 1)));
+                        }
+                        return Ok(Token::new(TokenKind::Pipe, Span::new(start, start + c.len_utf8())));
+                    }
+                '^' => {
+                        if let Some(&(eq_idx, '=')) = self.chars.peek() {
+                            self.chars.next();
+                            return Ok(Token::new(TokenKind::CaretEqual, Span::new(start, eq_idx + 1)));
+                        }
+                        return Ok(Token::new(TokenKind::Caret, Span::new(start, start + c.len_utf8())));
+                    }
+                ':' => return Ok(Token::new(TokenKind::Colon, Span::new(start, start + c.len_utf8()))),
+                ';' => return Ok(Token::new(TokenKind::Semicolon, Span::new(start, start + c.len_utf8()))),
+                '.' => {
+                    if let Some(&(dot_idx, '.')) = self.chars.peek() {
+                        self.chars.next();
+                        if let Some(&(eq_idx, '=')) = self.chars.peek() {
+                            self.chars.next();
+                            return Ok(Token::new(TokenKind::EllipsisEqual, Span::new(start, eq_idx + 1)));
+                        }
+                        return Ok(Token::new(TokenKind::Ellipsis, Span::new(start, dot_idx + 1)));
+                    }
+                    return Ok(Token::new(TokenKind::Dot, Span::new(start, start + c.len_utf8())));
+                }
+                ',' => return Ok(Token::new(TokenKind::Comma, Span::new(start, start + c.len_utf8()))),
+                '=' => {
+                    if let Some(&(second_eq_idx, '=')) = self.chars.peek() {
+                        self.chars.next();
+                        return Ok(Token::new(TokenKind::EqualEqual, Span::new(start, second_eq_idx + 1)));
+                    }
+                    if let Some(&(gt_idx, '>')) = self.chars.peek() {
+                        self.chars.next();
+                        return Ok(Token::new(TokenKind::FatArrow, Span::new(start, gt_idx + 1)));
+                    }
+                    return Ok(Token::new(TokenKind::Equal, Span::new(start, start + c.len_utf8())));
+                }
+                '!' => {
+                        if let Some(&(eq_idx, '=')) = self.chars.peek() {
+                            self.chars.next();
+                            return Ok(Token::new(TokenKind::BangEqual, Span::new(start, eq_idx + 1)));
+                        }
+                        return Ok(Token::new(TokenKind::Bang, Span::new(start, start + c.len_utf8())));
+                    }
+                _ => return Err(TokenizerError::InvalidCharacter)
             }
         }
-        Ok((TokenKind::EOF, self.source.len()))
+        let len = self.source.len();
+        Ok(Token::new(
+            TokenKind::EOF,
+            Span::new(len, len),
+        ))
     }
 }
 
-// current_index: usize,
-// read_index: usize,
-// current_char: Option<char>,
 
-//         '&' => {
-//             if (self.peek() == '=') {
-//                 self.read();
-//                 token = Token.init(Token.TokenType.AmpersandEqual, null);
-//             } else {
-//                 token = Token.init(Token.TokenType.Ampersand, null);
-//             }
-//         },
-//         '~' => token = Token.init(Token.TokenType.Tilde, null),
-//         '|' => {
-//             if (self.peek() == '=') {
-//                 self.read();
-//                 token = Token.init(Token.TokenType.PipeEqual, null);
-//             } else {
-//                 token = Token.init(Token.TokenType.Pipe, null);
-//             }
-//         },
-//         '^' => {
-//             if (self.peek() == '=') {
-//                 self.read();
-//                 token = Token.init(Token.TokenType.CaretEqual, null);
-//             } else {
-//                 token = Token.init(Token.TokenType.Caret, null);
-//             }
-//         },
-//         ':' => token = Token.init(Token.TokenType.Colon, null),
-//         ';' => token = Token.init(Token.TokenType.Semicolon, null),
-//         '.' => {
-//             if (self.peek() == '.') {
-//                 self.read();
-//                 if (self.peek() == '=') {
-//                     self.read();
-//                     token = Token.init(Token.TokenType.EllipsisEqual, null);
-//                 } else {
-//                     token = Token.init(Token.TokenType.Ellipsis, null);
-//                 }
-//             } else {
-//                 token = Token.init(Token.TokenType.Dot, null);
-//             }
-//         },
-//         ',' => token = Token.init(Token.TokenType.Comma, null),
-//         '=' => {
-//             if (self.peek() == '=') {
-//                 self.read();
-//                 token = Token.init(Token.TokenType.EqualEqual, null);
-//             } else if (self.peek() == '>') {
-//                 self.read();
-//                 token = Token.init(Token.TokenType.FatArrow, null);
-//             } else {
-//                 token = Token.init(Token.TokenType.Equal, null);
-//             }
-//         },
-//         '!' => {
-//             if (self.peek() == '=') {
-//                 self.read();
-//                 token = Token.init(Token.TokenType.BangEqual, null);
-//             } else {
-//                 token = Token.init(Token.TokenType.Bang, null);
-//             }
-//         },
 //         '+' => {
 //             if (self.peek() == '=') {
 //                 self.read();
@@ -192,6 +205,12 @@ impl<'a> Tokenizer<'a> {
 //                 token = Token.init(Token.TokenType.LeftAngleBracket, null);
 //             }
 //         },
+
+
+
+
+
+
 //         'a'...'z', 'A'...'Z', '_' => {
 //             const lexeme = self.read_identifier();
 //             if (Token.keyword_map.get(lexeme)) |token_type_keyword| {
@@ -226,25 +245,6 @@ impl<'a> Tokenizer<'a> {
 //     }
 // }
 
-// checks the character ahead to decide on a token
-// fn peek(self: *Scanner) u8 {
-//     if (self.read_index >= self.source.len) {
-//         return ascii_null;
-//     }
-//     return self.source[self.read_index];
-// }
-
-// reads the next character and sets current_char to it
-// fn read(self: *Scanner) void {
-//     if (self.read_index >= self.source.len) {
-//         self.current_char = ascii_null;
-//     } else {
-//         self.current_char = self.source[self.read_index];
-//     }
-//     self.current_index = self.read_index;
-//     self.read_index += 1;
-// }
-
 // reads the supposed identifier
 // fn read_identifier(self: *Scanner) []const u8 {
 //     const initial_index = self.current_index;
@@ -254,7 +254,7 @@ impl<'a> Tokenizer<'a> {
 //     return self.source[initial_index .. self.current_index + 1];
 // }
 
-// fn lex_identifier(&mut Self) -> Token {
+// fn read_identifier(&mut Self) -> Token {
 //     let mut ident = String::new();
 
 //     while let Some(&c) = self.peek() {
@@ -326,6 +326,6 @@ fn match_keyword(ident: &str) -> TokenKind {
         "True" => TokenKind::True,
         "var" => TokenKind::Var,
         "while" => TokenKind::While,
-        _ => TokenKind::Identifier
+        _ => TokenKind::Identifier,
     }
 }

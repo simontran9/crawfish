@@ -6,12 +6,12 @@
 
 ## Installation (building from source)
 
-**Requirements**
+### Requirements
 
 - [Rust Compiler](https://gcc.gnu.org/)
 - [GNU Make](https://www.gnu.org/software/make/)
 
-**Steps**
+### Steps
 
 1. Git clone the repository
 
