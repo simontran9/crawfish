@@ -85,6 +85,7 @@ pub enum TokenKind {
     And,
     Break,
     Continue,
+    Const,
     Else,
     Enum,
     Defer,
@@ -92,7 +93,7 @@ pub enum TokenKind {
     For,
     Func,
     If,
-    Impl,
+    Implements,
     Import,
     In,
     Interface,
@@ -124,14 +125,14 @@ pub struct Span {
 impl Span {
     /// Returns a span
     pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
+        Span { start, end }
     }
 }
 
 impl Token {
     /// Returns a token
     pub fn new(kind: TokenKind, span: Span) -> Self {
-        Self { kind, span }
+        Token { kind, span }
     }
 
     /// Lazily returns the lexeme as needed

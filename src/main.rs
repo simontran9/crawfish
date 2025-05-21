@@ -1,28 +1,29 @@
-use crawfish::cli;
+use crawfish::cli::{arg_parser, builder, runner};
 use std::env;
+use std::process;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    match cli::arg_parser::parse_args(&args) {
+    match arg_parser::parse_args(&args) {
         Ok(command) => match command {
-            cli::arg_parser::Command::Build(path) => {
-                if let Err(e) = cli::builder::build(&path) {
+            arg_parser::Command::Build(path) => {
+                if let Err(e) = builder::build(&path) {
                     eprintln!("Error: Compilation failure. {:?}", e); // TODO: remove :?
-                    std::process::exit(1);
+                    process::exit(1);
                 }
             }
-            cli::arg_parser::Command::Run(path) => {
-                if let Err(e) = cli::runner::run(&path) {
+            arg_parser::Command::Run(path) => {
+                if let Err(e) = runner::run(&path) {
                     eprintln!("Error: Run failure. {:?}", e); // TODO: remove :?
-                    std::process::exit(1);
+                    process::exit(1);
                 }
             }
-            cli::arg_parser::Command::Help => cli::arg_parser::help(),
-            cli::arg_parser::Command::Version => cli::arg_parser::version(),
+            arg_parser::Command::Help => arg_parser::help(),
+            arg_parser::Command::Version => arg_parser::version(),
         },
         Err(e) => {
             eprintln!("Error: {}", e);
-            std::process::exit(1);
+            process::exit(1);
         }
     }
 }

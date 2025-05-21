@@ -1,6 +1,6 @@
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Debug)] // TODO: remove
 pub enum RunError {
     NAH,
 }

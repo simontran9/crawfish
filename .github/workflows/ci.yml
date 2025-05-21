@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Format source code
+        run: cargo fmt
+      - name: Lint source code
+        run: cargo clippy
       - name: Run compilation check
         run: cargo check
       - name: Run unit tests
