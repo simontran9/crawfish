@@ -61,12 +61,8 @@ impl<'a> Tokenizer<'a> {
                 Span::new(start, start + c.len_utf8()),
             )),
             '&' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::AmpersandEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::AmpersandEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Ampersand,
@@ -78,12 +74,8 @@ impl<'a> Tokenizer<'a> {
                 Span::new(start, start + c.len_utf8()),
             )),
             '|' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::PipeEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::PipeEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Pipe,
@@ -91,12 +83,8 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '^' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::CaretEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::CaretEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Caret,
@@ -114,12 +102,8 @@ impl<'a> Tokenizer<'a> {
             '.' => {
                 if let Some(&(dot_idx, '.')) = self.chars.peek() {
                     self.chars.next();
-                    if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                        self.chars.next();
-                        return Ok(Token::new(
-                            TokenKind::EllipsisEqual,
-                            Span::new(start, eql_idx + '='.len_utf8()),
-                        ));
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::EllipsisEqual, Span::new(start, end)));
                     }
                     return Ok(Token::new(
                         TokenKind::Ellipsis,
@@ -136,19 +120,11 @@ impl<'a> Tokenizer<'a> {
                 Span::new(start, start + c.len_utf8()),
             )),
             '=' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::EqualEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::EqualEqual, Span::new(start, end)));
                 }
-                if let Some(&(gt_idx, '>')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::FatArrow,
-                        Span::new(start, gt_idx + '>'.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('>') {
+                    return Ok(Token::new(TokenKind::FatArrow, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Equal,
@@ -156,12 +132,8 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '!' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::BangEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::BangEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Bang,
@@ -169,12 +141,8 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '+' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::PlusEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::PlusEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Plus,
@@ -182,19 +150,11 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '-' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::MinusEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::MinusEqual, Span::new(start, end)));
                 }
-                if let Some(&(gt_idx, '>')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::SkinnyArrow,
-                        Span::new(start, gt_idx + '>'.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('>') {
+                    return Ok(Token::new(TokenKind::SkinnyArrow, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Minus,
@@ -202,12 +162,8 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '*' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::AsteriskEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::AsteriskEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Asterisk,
@@ -215,12 +171,8 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '/' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::SlashEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::SlashEqual, Span::new(start, end)));
                 }
                 if let Some(&(_, '/')) = self.chars.peek() {
                     self.chars.next();
@@ -233,12 +185,8 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '%' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::PercentEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::PercentEqual, Span::new(start, end)));
                 }
                 Ok(Token::new(
                     TokenKind::Percent,
@@ -246,21 +194,13 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '>' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::RightAngleBracketEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::RightAngleBracketEqual, Span::new(start, end)));
                 }
                 if let Some(&(gt_idx, '>')) = self.chars.peek() {
                     self.chars.next();
-                    if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                        self.chars.next();
-                        return Ok(Token::new(
-                            TokenKind::RightAngleBracketRightAngleBracketEqual,
-                            Span::new(start, eql_idx + '='.len_utf8()),
-                        ));
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::RightAngleBracketRightAngleBracketEqual, Span::new(start, end)));
                     }
                     return Ok(Token::new(
                         TokenKind::RightAngleBracketRightAngleBracket,
@@ -273,21 +213,13 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '<' => {
-                if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                    self.chars.next();
-                    return Ok(Token::new(
-                        TokenKind::LeftAngleBracketEqual,
-                        Span::new(start, eql_idx + '='.len_utf8()),
-                    ));
+                if let Some(end) = self.match_next('=') {
+                    return Ok(Token::new(TokenKind::LeftAngleBracketEqual, Span::new(start, end)));
                 }
                 if let Some(&(gt_idx, '<')) = self.chars.peek() {
                     self.chars.next();
-                    if let Some(&(eql_idx, '=')) = self.chars.peek() {
-                        self.chars.next();
-                        return Ok(Token::new(
-                            TokenKind::LeftAngleBracketLeftAngleBracketEqual,
-                            Span::new(start, eql_idx + '='.len_utf8()),
-                        ));
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::LeftAngleBracketLeftAngleBracketEqual, Span::new(start, end)));
                     }
                     return Ok(Token::new(
                         TokenKind::LeftAngleBracketLeftAngleBracket,
@@ -307,20 +239,23 @@ impl<'a> Tokenizer<'a> {
                 ))
             }
             '0'..='9' => {
-                let mut end = self.read_number(start);
-                if let Some(&(dot_idx, '.')) = self.chars.peek() {
-                    // Save state before consuming the dot to rewind as necessary
-                    self.chars.next();
-                    if let Some(&(after_dot_idx, after_dot_char)) = self.chars.peek() {
-                        // Fraction detected, read the rest to see if it is indeed a float
+                let end = self.read_number(start);
+                if let Some(&(_, '.')) = self.chars.peek() {
+                    // Save state, without having to modify the actual underlying iterator, via `clone()`,
+                    // before consuming the dot to rewind as necessary
+                    let mut chars_clone = self.chars.clone();
+                    chars_clone.next();
+                    if let Some(&(after_dot_idx, after_dot_char)) = chars_clone.peek() {
+                        // Fraction detected, so we consume the dot on the actual underlying iterator,
+                        // and read the rest to see if it is indeed a float
                         if after_dot_char.is_ascii_digit() {
-                            end = self.read_number(after_dot_idx);
-                            return Ok(Token::new(TokenKind::FloatLiteral, Span::new(start, end)));
-                        } else {
-                            // If it's just a dot, rewind
-                            self.chars = self.source[dot_idx..].char_indices().peekable();
+                            self.chars.next();
+                            let float_end = self.read_number(after_dot_idx);
+                            return Ok(Token::new(TokenKind::FloatLiteral, Span::new(start, float_end)));
                         }
                     }
+                    // if it wasn't a float, then we didn't modify the actual underlying iterator, so not an issue
+                    // and we remain at the last number right before the dot
                 }
                 Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)))
             }
@@ -347,6 +282,16 @@ impl<'a> Tokenizer<'a> {
             }
             self.chars.next();
         }
+    }
+
+    fn match_next(&mut self, expected: char) -> Option<usize> {
+        if let Some(&(i, c)) = self.chars.peek() {
+            if c == expected {
+                self.chars.next();
+                return Some(i + expected.len_utf8());
+            }
+        }
+        None
     }
 
     fn read_lexeme(&mut self, start: usize) -> usize {
