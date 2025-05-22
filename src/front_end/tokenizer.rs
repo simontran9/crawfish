@@ -5,7 +5,7 @@ use std::str::CharIndices;
 // TODO: maybe rename to syntax error?
 #[derive(Debug)]
 pub enum TokenizerError {
-    InvalidCharacter,
+    InvalidCharacter(char),
     WindowsLineEndingDisallowed,
 }
 
@@ -301,45 +301,48 @@ impl<'a> Tokenizer<'a> {
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 let end = self.read_lexeme(start);
-                println!("{}", &self.source[start..end].to_string());
                 Ok(Token::new(
                     lexeme_token_kind(&self.source[start..end]),
                     Span::new(start, end),
                 ))
             }
             '0'..='9' => {
-                todo!();
+                let mut end = self.read_number(start);
+                if let Some(&(dot_idx, '.')) = self.chars.peek() {
+                    // Save state before consuming the dot to rewind as necessary
+                    self.chars.next();
+                    if let Some(&(after_dot_idx, after_dot_char)) = self.chars.peek() {
+                        // Fraction detected, read the rest to see if it is indeed a float
+                        if after_dot_char.is_ascii_digit() {
+                            end = self.read_number(after_dot_idx);
+                            return Ok(Token::new(TokenKind::FloatLiteral, Span::new(start, end)));
+                        } else {
+                            // If it's just a dot, rewind
+                            self.chars = self.source[dot_idx..].char_indices().peekable();
+                        }
+                    }
+                }
+                Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)))
             }
-            //         '0'...'9' => {
-            //             if (self.peek() == '.') {
-            //                 const lexeme = self.read_float();
-            //                 if (lexeme == null) {
-            //                     token = Token.init(Token.TokenType.Illegal, null);
-            //                 } else {
-            //                     token = Token.init(Token.TokenType.FloatLiteral, lexeme);
-            //                 }
-            //             } else {
-            //                 token = Token.init(Token.TokenType.IntegerLiteral, self.read_integer());
-            //             }
-            //         },
-            //     }
             '\r' => Err(TokenizerError::WindowsLineEndingDisallowed),
-            _ => Err(TokenizerError::InvalidCharacter),
+            _ => Err(TokenizerError::InvalidCharacter(c)),
         }
     }
 
     fn skip_whitespace(&mut self) {
-        while let Some(&(_, c)) = self.chars.peek() {
-            if !c.is_whitespace() {
-                break;
-            }
-            self.chars.next();
-        }
+        self.skip_while(|c| c.is_whitespace());
     }
 
     fn skip_comment(&mut self) {
+        self.skip_while(|c| c != '\n');
+    }
+
+    fn skip_while<F>(&mut self, predicate: F)
+    where
+        F: Fn(char) -> bool,
+    {
         while let Some(&(_, c)) = self.chars.peek() {
-            if c == '\n' {
+            if !predicate(c) {
                 break;
             }
             self.chars.next();
@@ -347,9 +350,20 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn read_lexeme(&mut self, start: usize) -> usize {
+        self.read_while(start, |c| c.is_alphanumeric() || c == '_')
+    }
+
+    fn read_number(&mut self, start: usize) -> usize {
+        self.read_while(start, |c| c.is_ascii_digit())
+    }
+
+    fn read_while<F>(&mut self, start: usize, predicate: F) -> usize
+    where
+        F: Fn(char) -> bool,
+    {
         let mut end = start;
         while let Some(&(i, c)) = self.chars.peek() {
-            if c.is_alphanumeric() || c == '_' {
+            if predicate(c) {
                 self.chars.next();
                 end = i + c.len_utf8(); // for exclusive end
             } else {
@@ -357,14 +371,6 @@ impl<'a> Tokenizer<'a> {
             }
         }
         end
-    }
-
-    fn read_int(&mut self) {
-        todo!();
-    }
-
-    fn read_float(&mut self) {
-        todo!();
     }
 }
 
@@ -399,34 +405,3 @@ fn lexeme_token_kind(ident: &str) -> TokenKind {
         _ => TokenKind::Identifier,
     }
 }
-
-// reads the supposed float
-// fn read_float(self: *Scanner) ?[]const u8 {
-//     const initial_index = self.current_index;
-
-//     // in a supposed float "num.c1c2c3...", the following
-//     // two lines reads '.' and 'c1' then stops
-//     self.read();
-//     self.read();
-
-//     // if c1 isn't a digit, it's definitely not a float
-//     if (!std.ascii.isDigit(self.current_char)) {
-//         return null;
-//     }
-
-//     while (std.ascii.isDigit(self.peek())) {
-//         self.read();
-//     }
-//     return self.source[initial_index .. self.current_index + 1];
-// }
-
-// reads an integer
-// fn read_integer(self: *Scanner) []const u8 {
-//     const initial_index = self.current_index;
-
-//     while (std.ascii.isDigit(self.peek())) {
-//         self.read();
-//     }
-//     return self.source[initial_index .. self.current_index + 1];
-// }
-// }
