@@ -4,7 +4,7 @@
 #[derive(Debug)]
 pub struct Token {
     pub kind: TokenKind,
-    span: Span,
+    pub span: Span,
 }
 
 /// The token's type.
@@ -117,9 +117,9 @@ pub enum TokenKind {
 #[derive(Debug)]
 pub struct Span {
     // inclusive
-    start: usize,
+    pub start: usize,
     // exclusive
-    end: usize,
+    pub end: usize,
 }
 
 impl Span {

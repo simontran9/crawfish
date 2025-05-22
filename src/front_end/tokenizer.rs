@@ -15,17 +15,23 @@ pub struct Tokenizer<'a> {
     chars: Peekable<CharIndices<'a>>,
 }
 
-// TODO: handle const BOM: &str = "\u{FEFF}";
 // TODO: implement regular string
 // TODO: implement multi-line string
 // TODO: implement char
 impl<'a> Tokenizer<'a> {
+    const BOM: char = '\u{FEFF}';
+
     /// Returns a tokenizer iterator
     pub fn new(source: &'a str) -> Self {
-        Self {
-            source,
-            chars: source.char_indices().peekable(),
+        let mut chars = source.char_indices().peekable();
+
+        if let Some(&(_, c)) = chars.peek() {
+            if c == Self::BOM {
+                chars.next();
+            }
         }
+
+        Self { source, chars }
     }
 
     /// Returns the next token
@@ -195,12 +201,18 @@ impl<'a> Tokenizer<'a> {
             }
             '>' => {
                 if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::RightAngleBracketEqual, Span::new(start, end)));
+                    return Ok(Token::new(
+                        TokenKind::RightAngleBracketEqual,
+                        Span::new(start, end),
+                    ));
                 }
                 if let Some(&(gt_idx, '>')) = self.chars.peek() {
                     self.chars.next();
                     if let Some(end) = self.match_next('=') {
-                        return Ok(Token::new(TokenKind::RightAngleBracketRightAngleBracketEqual, Span::new(start, end)));
+                        return Ok(Token::new(
+                            TokenKind::RightAngleBracketRightAngleBracketEqual,
+                            Span::new(start, end),
+                        ));
                     }
                     return Ok(Token::new(
                         TokenKind::RightAngleBracketRightAngleBracket,
@@ -214,12 +226,18 @@ impl<'a> Tokenizer<'a> {
             }
             '<' => {
                 if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::LeftAngleBracketEqual, Span::new(start, end)));
+                    return Ok(Token::new(
+                        TokenKind::LeftAngleBracketEqual,
+                        Span::new(start, end),
+                    ));
                 }
                 if let Some(&(gt_idx, '<')) = self.chars.peek() {
                     self.chars.next();
                     if let Some(end) = self.match_next('=') {
-                        return Ok(Token::new(TokenKind::LeftAngleBracketLeftAngleBracketEqual, Span::new(start, end)));
+                        return Ok(Token::new(
+                            TokenKind::LeftAngleBracketLeftAngleBracketEqual,
+                            Span::new(start, end),
+                        ));
                     }
                     return Ok(Token::new(
                         TokenKind::LeftAngleBracketLeftAngleBracket,
@@ -234,7 +252,7 @@ impl<'a> Tokenizer<'a> {
             'a'..='z' | 'A'..='Z' | '_' => {
                 let end = self.read_lexeme(start);
                 Ok(Token::new(
-                    lexeme_token_kind(&self.source[start..end]),
+                    self.lexeme_token_kind(&self.source[start..end]),
                     Span::new(start, end),
                 ))
             }
@@ -251,10 +269,13 @@ impl<'a> Tokenizer<'a> {
                         if after_dot_char.is_ascii_digit() {
                             self.chars.next();
                             let float_end = self.read_number(after_dot_idx);
-                            return Ok(Token::new(TokenKind::FloatLiteral, Span::new(start, float_end)));
+                            return Ok(Token::new(
+                                TokenKind::FloatLiteral,
+                                Span::new(start, float_end),
+                            ));
                         }
                     }
-                    // if it wasn't a float, then we didn't modify the actual underlying iterator, so not an issue
+                    // If it wasn't a float, then we didn't modify the actual underlying iterator, so not an issue
                     // and we remain at the last number right before the dot
                 }
                 Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)))
@@ -310,43 +331,55 @@ impl<'a> Tokenizer<'a> {
         while let Some(&(i, c)) = self.chars.peek() {
             if predicate(c) {
                 self.chars.next();
-                end = i + c.len_utf8(); // for exclusive end
+                // Exclusive end can be calculated by taking the last character's
+                // index, and adding its length. We continuously
+                end = i + c.len_utf8();
             } else {
                 break;
             }
         }
         end
     }
+
+    fn lexeme_token_kind(&self, ident: &str) -> TokenKind {
+        match ident {
+            "and" => TokenKind::And,
+            "break" => TokenKind::Break,
+            "continue" => TokenKind::Continue,
+            "const" => TokenKind::Const,
+            "else" => TokenKind::Else,
+            "enum" => TokenKind::Enum,
+            "defer" => TokenKind::Defer,
+            "False" => TokenKind::False,
+            "func" => TokenKind::Func,
+            "for" => TokenKind::For,
+            "if" => TokenKind::If,
+            "implements" => TokenKind::Implements,
+            "import" => TokenKind::Import,
+            "in" => TokenKind::In,
+            "interface" => TokenKind::Interface,
+            "match" => TokenKind::Match,
+            "None" => TokenKind::None,
+            "or" => TokenKind::Or,
+            "package" => TokenKind::Package,
+            "pub" => TokenKind::Pub,
+            "return" => TokenKind::Return,
+            "struct" => TokenKind::Struct,
+            "this" => TokenKind::This,
+            "True" => TokenKind::True,
+            "var" => TokenKind::Var,
+            "while" => TokenKind::While,
+            _ => TokenKind::Identifier,
+        }
+    }
 }
 
-fn lexeme_token_kind(ident: &str) -> TokenKind {
-    match ident {
-        "and" => TokenKind::And,
-        "break" => TokenKind::Break,
-        "continue" => TokenKind::Continue,
-        "const" => TokenKind::Const,
-        "else" => TokenKind::Else,
-        "enum" => TokenKind::Enum,
-        "defer" => TokenKind::Defer,
-        "False" => TokenKind::False,
-        "func" => TokenKind::Func,
-        "for" => TokenKind::For,
-        "if" => TokenKind::If,
-        "implements" => TokenKind::Implements,
-        "import" => TokenKind::Import,
-        "in" => TokenKind::In,
-        "interface" => TokenKind::Interface,
-        "match" => TokenKind::Match,
-        "None" => TokenKind::None,
-        "or" => TokenKind::Or,
-        "package" => TokenKind::Package,
-        "pub" => TokenKind::Pub,
-        "return" => TokenKind::Return,
-        "struct" => TokenKind::Struct,
-        "this" => TokenKind::This,
-        "True" => TokenKind::True,
-        "var" => TokenKind::Var,
-        "while" => TokenKind::While,
-        _ => TokenKind::Identifier,
-    }
+#[test]
+fn test_bom_is_skipped() {
+    let source = "\u{FEFF}identifier";
+    let mut tokenizer = Tokenizer::new(source);
+    let token = tokenizer.next().unwrap();
+
+    assert_eq!(token.kind, TokenKind::Identifier);
+    assert_eq!(&source[token.span.start..token.span.end], "identifier");
 }
