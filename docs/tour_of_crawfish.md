@@ -1,11 +1,5 @@
 # A tour of crawfish
 
-> A language
-> - As *fast* and simple like Go
-> - As *Readable* like Python
-> - *High-level* like Java
-> - A bit *interesting* Rust
-
 ## Usage
 
 ### Programming structure
@@ -93,14 +87,12 @@ var c: Char = 's';
 
 | Escape Sequence | Description        |
 | --------------- | ------------------ |
-| `\\`            | Backslash          |
 | `\'`            | Single quote       |
 | `\"`            | Double quote       |
-| `\b`            | Backspace (U+0008) |
-| `\f`            | Form feed (U+000C) |
 | `\n`            | Newline (U+000A)   |
 | `\r`            | Carriage return    |
 | `\t`            | Tab (U+0009)       |
+| `\\`            | Backslash          |
 | `\0`            | Null byte (U+0000) |
 | `\xNN`          | Hexadecimal escape (2 hex digits, 0x00–0x7F only) |
 | `\u{XXXXXX}`    | Unicode escape (1–6 hex digits, U+0000–U+10FFFF) |

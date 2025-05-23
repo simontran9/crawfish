@@ -13,12 +13,14 @@ pub enum TokenizerError {
 }
 
 /// Tokenizer
+/// - `source` is a string slice to the original source code
+/// - `chars` is an iterator that returns `(index, character)` elements
+///    and supports lookahead out of the box
 pub struct Tokenizer<'a> {
     source: &'a str,
     chars: Peekable<CharIndices<'a>>,
 }
 
-// TODO: escape sequence work on char
 impl<'a> Tokenizer<'a> {
     const BOM: char = '\u{FEFF}';
 
@@ -262,7 +264,7 @@ impl<'a> Tokenizer<'a> {
                     Span::new(start, end),
                 ))
             }
-            '\'' => {
+            '\'' => { // TODO: allow hex and unicode escape sequence in char
                 // Invalid case 1: empty character `''`
                 if let Some(&(_, '\'')) = self.chars.peek() {
                     return Err(TokenizerError::EmptyChar);
@@ -303,7 +305,6 @@ impl<'a> Tokenizer<'a> {
                 // Covers invalid case 5: unclosed char, where char content is the last char in the whole file
                 return Err(TokenizerError::UnterminatedChar);
             }
-            '"' => todo!("implement string and multi-line string"),
             '0'..='9' => {
                 let end = self.read_number(start);
                 if let Some(&(_, '.')) = self.chars.peek() {
@@ -393,7 +394,7 @@ impl<'a> Tokenizer<'a> {
 
     fn is_single_char_escape_sequence(c: char) -> bool {
         match c {
-            'n' | 'r' | 't' | 'b' | 'f' | '0' | '\\' | '\'' | '\"' => true,
+            'n' | 'r' | 't' | '0' | '\\' | '\'' | '\"' => true,
             _ => false,
         }
     }
@@ -411,7 +412,6 @@ mod tests {
         assert_eq!(token.kind, TokenKind::Struct);
     }
 
-    // TODO: others
      #[test]
     fn test_valid_operators() {
         let source = "!=";
@@ -420,13 +420,35 @@ mod tests {
         assert_eq!(token.kind, TokenKind::BangEqual);
     }
 
+    // TODO: '\\' error
     #[test]
     fn test_valid_char() {
-        let source = "'a'";
+        let source = "'a' '\n' '\r' '\t' '\0' '\\'";
         let mut tokenizer = Tokenizer::new(source);
+
         let token = tokenizer.next().unwrap();
         assert_eq!(token.kind, TokenKind::CharLiteral);
         assert_eq!(token.lexeme(source), "'a'");
+
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::CharLiteral);
+        assert_eq!(token.lexeme(source), "'\n'");
+
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::CharLiteral);
+        assert_eq!(token.lexeme(source), "'\r'");
+
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::CharLiteral);
+        assert_eq!(token.lexeme(source), "'\t'");
+
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::CharLiteral);
+        assert_eq!(token.lexeme(source), "'\0'");
+
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::CharLiteral);
+        assert_eq!(token.lexeme(source), "'\\'");
     }
 
     #[test]
@@ -462,17 +484,4 @@ mod tests {
         let token = tokenizer.next();
         assert_eq!(token, Err(TokenizerError::UnterminatedChar));
     }
-
-
-    //                 | Escape Sequence | Description        |
-    // | --------------- | ------------------ |
-    // | `\\`            | Backslash          |
-    // | `\'`            | Single quote       |
-    // | `\"`            | Double quote       |
-    // | `\b`            | Backspace (U+0008) |
-    // | `\f`            | Form feed (U+000C) |
-    // | `\n`            | Newline (U+000A)   |
-    // | `\r`            | Carriage return    |
-    // | `\t`            | Tab (U+0009)       |
-    // | `\0`            | Null byte (U+0000) |
 }
