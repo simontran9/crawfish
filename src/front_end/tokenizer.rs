@@ -2,11 +2,14 @@ use crate::front_end::token::{Span, Token, TokenKind};
 use std::iter::Peekable;
 use std::str::CharIndices;
 
-// TODO: maybe rename to syntax error?
-#[derive(Debug)]
+// TODO: implement fmt::Display
+#[derive(Debug, PartialEq)]
 pub enum TokenizerError {
-    InvalidCharacter(char),
+    UnrecognizedCharacter(char),
     WindowsLineEndingDisallowed,
+    EmptyChar,
+    UnterminatedChar,
+    InvalidEscSeqChar,
 }
 
 /// Tokenizer
@@ -15,9 +18,7 @@ pub struct Tokenizer<'a> {
     chars: Peekable<CharIndices<'a>>,
 }
 
-// TODO: implement regular string
-// TODO: implement multi-line string
-// TODO: implement char
+// TODO: escape sequence work on char
 impl<'a> Tokenizer<'a> {
     const BOM: char = '\u{FEFF}';
 
@@ -97,10 +98,15 @@ impl<'a> Tokenizer<'a> {
                     Span::new(start, start + c.len_utf8()),
                 ))
             }
-            ':' => Ok(Token::new(
-                TokenKind::Colon,
-                Span::new(start, start + c.len_utf8()),
-            )),
+            ':' => {
+                if let Some(end) = self.match_next(':') {
+                    return Ok(Token::new(TokenKind::DoubleColon, Span::new(start, end)));
+                }
+                Ok(Token::new(
+                    TokenKind::Colon,
+                    Span::new(start, start + c.len_utf8()),
+                ))
+            }
             ';' => Ok(Token::new(
                 TokenKind::Semicolon,
                 Span::new(start, start + c.len_utf8()),
@@ -252,10 +258,52 @@ impl<'a> Tokenizer<'a> {
             'a'..='z' | 'A'..='Z' | '_' => {
                 let end = self.read_lexeme(start);
                 Ok(Token::new(
-                    self.lexeme_token_kind(&self.source[start..end]),
+                    Token::lexeme_token_kind(&self.source[start..end]),
                     Span::new(start, end),
                 ))
             }
+            '\'' => {
+                // Invalid case 1: empty character `''`
+                if let Some(&(_, '\'')) = self.chars.peek() {
+                    return Err(TokenizerError::EmptyChar);
+                }
+
+                if let Some(&(_, '\\')) = self.chars.peek() {
+                    let mut chars_clone = self.chars.clone();
+                    chars_clone.next();
+                    if let Some(&(_, after_slash_char)) = chars_clone.peek() {
+                        if Tokenizer::is_single_char_escape_sequence(after_slash_char) {
+                            // Actually consume the `\`
+                            self.chars.next();
+                            // Consume the `single char`
+                            self.chars.next();
+                        }
+                        // Covers invalid case 2: not a valid escape sequence
+                        return Err(TokenizerError::InvalidEscSeqChar);
+                    }
+                } else {
+                    // Covers invalid case 3: Not a Unicode scalar value
+                    // Fortunately, we don't need to check for Unicode scalar value here since Rust's char iterator gurantees
+                    // that it will return valid Unicode scalar values
+                    self.chars.next();
+                }
+
+                // Covers invalid case 4: two or more Unicode scalar values
+                // Covers invalid case 5: unclosed char, where `source` has further chars to process
+                if let Some(&(i, c)) = self.chars.peek() {
+                    if c != '\'' {
+                        return Err(TokenizerError::UnterminatedChar);
+                    }
+                    self.chars.next();
+                    return Ok(Token::new(
+                        TokenKind::CharLiteral,
+                        Span::new(start, i + c.len_utf8()),
+                    ));
+                }
+                // Covers invalid case 5: unclosed char, where char content is the last char in the whole file
+                return Err(TokenizerError::UnterminatedChar);
+            }
+            '"' => todo!("implement string and multi-line string"),
             '0'..='9' => {
                 let end = self.read_number(start);
                 if let Some(&(_, '.')) = self.chars.peek() {
@@ -281,7 +329,7 @@ impl<'a> Tokenizer<'a> {
                 Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)))
             }
             '\r' => Err(TokenizerError::WindowsLineEndingDisallowed),
-            _ => Err(TokenizerError::InvalidCharacter(c)),
+            _ => Err(TokenizerError::UnrecognizedCharacter(c)),
         }
     }
 
@@ -306,13 +354,13 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn match_next(&mut self, expected: char) -> Option<usize> {
-        if let Some(&(i, c)) = self.chars.peek() {
-            if c == expected {
+        match self.chars.peek() {
+            Some(&(i, c)) if c == expected => {
                 self.chars.next();
-                return Some(i + expected.len_utf8());
+                Some(i + expected.len_utf8())
             }
+            _ => None,
         }
-        None
     }
 
     fn read_lexeme(&mut self, start: usize) -> usize {
@@ -332,7 +380,9 @@ impl<'a> Tokenizer<'a> {
             if predicate(c) {
                 self.chars.next();
                 // Exclusive end can be calculated by taking the last character's
-                // index, and adding its length. We continuously
+                // index, and adding its length. We continuously calculate end
+                // in here, rather than in the else branch, because otherwise,
+                // the exlusive end would include the first rejected character.
                 end = i + c.len_utf8();
             } else {
                 break;
@@ -341,45 +391,88 @@ impl<'a> Tokenizer<'a> {
         end
     }
 
-    fn lexeme_token_kind(&self, ident: &str) -> TokenKind {
-        match ident {
-            "and" => TokenKind::And,
-            "break" => TokenKind::Break,
-            "continue" => TokenKind::Continue,
-            "const" => TokenKind::Const,
-            "else" => TokenKind::Else,
-            "enum" => TokenKind::Enum,
-            "defer" => TokenKind::Defer,
-            "False" => TokenKind::False,
-            "func" => TokenKind::Func,
-            "for" => TokenKind::For,
-            "if" => TokenKind::If,
-            "implements" => TokenKind::Implements,
-            "import" => TokenKind::Import,
-            "in" => TokenKind::In,
-            "interface" => TokenKind::Interface,
-            "match" => TokenKind::Match,
-            "None" => TokenKind::None,
-            "or" => TokenKind::Or,
-            "package" => TokenKind::Package,
-            "pub" => TokenKind::Pub,
-            "return" => TokenKind::Return,
-            "struct" => TokenKind::Struct,
-            "this" => TokenKind::This,
-            "True" => TokenKind::True,
-            "var" => TokenKind::Var,
-            "while" => TokenKind::While,
-            _ => TokenKind::Identifier,
+    fn is_single_char_escape_sequence(c: char) -> bool {
+        match c {
+            'n' | 'r' | 't' | 'b' | 'f' | '0' | '\\' | '\'' | '\"' => true,
+            _ => false,
         }
     }
 }
 
-#[test]
-fn test_bom_is_skipped() {
-    let source = "\u{FEFF}identifier";
-    let mut tokenizer = Tokenizer::new(source);
-    let token = tokenizer.next().unwrap();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    assert_eq!(token.kind, TokenKind::Identifier);
-    assert_eq!(&source[token.span.start..token.span.end], "identifier");
+    #[test]
+    fn test_bom_is_skipped() {
+        let source = "\u{FEFF}struct";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::Struct);
+    }
+
+    // TODO: others
+     #[test]
+    fn test_valid_operators() {
+        let source = "!=";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::BangEqual);
+    }
+
+    #[test]
+    fn test_valid_char() {
+        let source = "'a'";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::CharLiteral);
+        assert_eq!(token.lexeme(source), "'a'");
+    }
+
+    #[test]
+    fn test_invalid_char_case_1() {
+        let source = "''";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next();
+        assert_eq!(token, Err(TokenizerError::EmptyChar));
+    }
+
+    #[test]
+    fn test_invalid_char_case_2() {
+        let source = "'\\a'";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next();
+        assert_eq!(token, Err(TokenizerError::InvalidEscSeqChar));
+    }
+
+    // NOTE: invalid char case 3 isn't covered. See reason above.
+
+    #[test]
+    fn test_invalid_char_case_4() {
+        let source = "'ab'";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next();
+        assert_eq!(token, Err(TokenizerError::UnterminatedChar));
+    }
+
+    #[test]
+    fn test_invalid_char_case_5() {
+        let source = "'a";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next();
+        assert_eq!(token, Err(TokenizerError::UnterminatedChar));
+    }
+
+
+    //                 | Escape Sequence | Description        |
+    // | --------------- | ------------------ |
+    // | `\\`            | Backslash          |
+    // | `\'`            | Single quote       |
+    // | `\"`            | Double quote       |
+    // | `\b`            | Backspace (U+0008) |
+    // | `\f`            | Form feed (U+000C) |
+    // | `\n`            | Newline (U+000A)   |
+    // | `\r`            | Carriage return    |
+    // | `\t`            | Tab (U+0009)       |
+    // | `\0`            | Null byte (U+0000) |
 }

@@ -1,7 +1,7 @@
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-};
+use std::fmt;
+// use std::io::Error;
+use std::error::Error;
+use std::path::{Path, PathBuf};
 
 pub enum Command {
     Build(PathBuf),
@@ -10,6 +10,7 @@ pub enum Command {
     Version,
 }
 
+#[derive(Debug)]
 pub enum CLIError {
     FileNotFound(String),
     InvalidFileExtension,
@@ -32,6 +33,8 @@ impl fmt::Display for CLIError {
         }
     }
 }
+
+impl Error for CLIError {}
 
 pub fn parse_args(args: &[String]) -> Result<Command, CLIError> {
     let command = args.get(1).map(String::as_str);

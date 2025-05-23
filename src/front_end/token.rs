@@ -1,7 +1,7 @@
 //! Token and token-related data structures
 
 /// Token type
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
@@ -98,9 +98,8 @@ pub enum TokenKind {
     In,
     Interface,
     Match,
-    None,
+    Null,
     Or,
-    Package,
     Pub,
     Return,
     Struct,
@@ -114,7 +113,7 @@ pub enum TokenKind {
 }
 
 /// The location of the token within the source, bounded by an inclusive `start`, and a exclusive `end`.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Span {
     // inclusive
     pub start: usize,
@@ -138,5 +137,36 @@ impl Token {
     /// Lazily returns the lexeme as needed
     pub fn lexeme<'a>(&self, source: &'a str) -> &'a str {
         &source[self.span.start..self.span.end]
+    }
+
+    pub fn lexeme_token_kind(ident: &str) -> TokenKind {
+        match ident {
+            "and" => TokenKind::And,
+            "break" => TokenKind::Break,
+            "continue" => TokenKind::Continue,
+            "const" => TokenKind::Const,
+            "else" => TokenKind::Else,
+            "enum" => TokenKind::Enum,
+            "defer" => TokenKind::Defer,
+            "false" => TokenKind::False,
+            "func" => TokenKind::Func,
+            "for" => TokenKind::For,
+            "if" => TokenKind::If,
+            "implements" => TokenKind::Implements,
+            "import" => TokenKind::Import,
+            "in" => TokenKind::In,
+            "interface" => TokenKind::Interface,
+            "match" => TokenKind::Match,
+            "null" => TokenKind::Null,
+            "or" => TokenKind::Or,
+            "pub" => TokenKind::Pub,
+            "return" => TokenKind::Return,
+            "struct" => TokenKind::Struct,
+            "this" => TokenKind::This,
+            "true" => TokenKind::True,
+            "var" => TokenKind::Var,
+            "while" => TokenKind::While,
+            _ => TokenKind::Identifier,
+        }
     }
 }

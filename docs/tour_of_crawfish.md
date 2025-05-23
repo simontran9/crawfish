@@ -80,25 +80,44 @@ var happy: Bool = True;
 
 #### Characters
 
-- A 32-bit immutable character enclosed in `'`.
+- Unicode scalar value i.e. UTF-32
+- Exactly one Unicode scalar value. Nothing more, nothing less.
+- Enclosed in `'`
+- Immutable
 - Pass by value
-- Zero value:  `'\x00'`
+- Zero value:  `'\0'`, `'\x00'`, `'\u{0}'`
+
 ```
 var c: Char = 's';
 ```
+
+| Escape Sequence | Description        |
+| --------------- | ------------------ |
+| `\\`            | Backslash          |
+| `\'`            | Single quote       |
+| `\"`            | Double quote       |
+| `\b`            | Backspace (U+0008) |
+| `\f`            | Form feed (U+000C) |
+| `\n`            | Newline (U+000A)   |
+| `\r`            | Carriage return    |
+| `\t`            | Tab (U+0009)       |
+| `\0`            | Null byte (U+0000) |
+| `\xNN`          | Hexadecimal escape (2 hex digits, 0x00–0x7F only) |
+| `\u{XXXXXX}`    | Unicode escape (1–6 hex digits, U+0000–U+10FFFF) |
 
 #### Strings
 
 - A heap-allocated immutable text enclosed in `"` for single-lined strings, or `"""` for multi-line strings.
 - Pass by reference
+- UTF-8 encoded
 - Zero value: `""`
 ```
 var name: String = "Bob";
 ```
 
-#### Fixed-length arrays
+#### Fixed-capacity arrays
 
-- A heap-allocated fixed-length array of specified type, declared and initialized on the RHS of the equals sign as `[<single populating value>; <length>]`, or `[<element 1>, <element 2>, ..., <element N>]`, and indexing via `<array name>[<index>]`
+- A heap-allocated fixed-capacity array of specified type, declared and initialized on the RHS of the equals sign as `[<single populating value>; <length>]`, or `[<element 1>, <element 2>, ..., <element N>]`, and indexed via `<array name>[<index>]`
 - Pass by reference
 - Zero value: the zero value for the array's type i.e. the zero of the type for a single element
 ```
@@ -132,7 +151,7 @@ var third_val = stuff[2];
 ```
 
 > [!NOTE]
-> All variables and varants must be declared and initialized. Initializing with the zero value is similar to other languages which implicitly initializes a variable or varant whenever you only declare it.
+> All variables and varants must be declared and initialized. Initializing with the zero value is similar to other languages which implicitly initializes a variable whenever you only declare it.
 
 ### Variables
 
@@ -147,19 +166,6 @@ var <variable name>: <type> = ...;
 ```
 <first variable>, <second variable> = <second variable>, <first variable>;
 ```
-
-### Supported escape sequences
-
-| Escape Sequence | Description         |
-|-----------------|---------------------|
-| `\n`            | newline             |
-| `\r`            | carriage return     |
-| `\t`            | tab                 |
-| `\b`            | backspace           |
-| `\f`            | form feed           |
-| `\\`            | backslash           |
-| `\'`            | single quote        |
-| `\"`            | double quote        |
 
 ## Operators
 
@@ -214,7 +220,7 @@ if <boolean condition> {
 }
 ```
 
-#### Ternary-like usage (i.e. conditional statements as expressions)**
+#### Ternary-like usage (i.e. conditional statements as expressions)
 ```
 func check(x: int) -> String {
     return if x == 2 { "Nice" } else { "No!" };
@@ -253,7 +259,7 @@ match <variable or varant> {
     ... => ...,
     ... | ... | ... => ...,
     ... if <condition> => ...,
-    ... as ... => ...,
+    ... => ...,
     _ => ...,
 }
 ```
@@ -316,25 +322,29 @@ struct <struct name> {
 #### Associated functions with structures
 
 ```
-impl <struct name> {
+<struct name> {
     // acts like static fields
     var <static name>: <type> = <value>;
 
-    // acts like OOP methods
+    // acts like a method an on object accessed via <object>.<method name>(<arg>)
+    func <method name>(this, <arg>) -> <return type> {
+        ...
+    }
+
+    // acts like a static method an on struct accessed via <struct name>::<method name>(<arg>)
+    func <method name>(<arg>) -> <return type> {
+        ...
+    }
 }
 ```
 
 #### Implementing an interface
 
 ```
-struct <struct name> {
+struct <struct name> implements <interface name> {
     <field name>: <type>,
     <field name>: <type>,
     <field name>: <type>,
-}
-
-impl <interface name> for <struct name> {
-    ...
 }
 ```
 
@@ -358,7 +368,7 @@ interface <interface name>[T] {
 }
 ```
 
-## Import and package
+## Import
 
 TO DO
 
@@ -390,7 +400,7 @@ TO DO
 
 ### Containers
 
-Abstract data types are supported with the most common operations — access, insertion, deletion, and sometimes, updates.
+Abstract data types are supported with the most common operations: access, insertion, deletion, and sometimes, updates.
 
 - `ArrayList`: a list backed by a dynamic array
 - `SinglyLinkedList`: a list backed by a singly linked list
@@ -410,6 +420,3 @@ Abstract data types are supported with the most common operations — access, in
 
 - `sort`: driftsort stable sorting algorithm
 - `binary_search`: binary search algorithm
-
-
-
