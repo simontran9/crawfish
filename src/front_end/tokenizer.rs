@@ -264,46 +264,26 @@ impl<'a> Tokenizer<'a> {
                     Span::new(start, end),
                 ))
             }
-            '\'' => { // TODO: allow hex and unicode escape sequence in char
-                // Invalid case 1: empty character `''`
-                if let Some(&(_, '\'')) = self.chars.peek() {
-                    return Err(TokenizerError::EmptyChar);
-                }
+            '\'' => {
+                match self.chars.next() {
+                    Some((_, '\\')) => match self.chars.next() {
+                        Some((_, c)) if Self::is_single_char_escape_sequence(c) => (),
+                        Some(_) => return Err(TokenizerError::InvalidEscSeqChar),
+                        None => return Err(TokenizerError::UnterminatedChar),
+                    },
+                    Some((_, c)) if c != '\'' => (),
+                    Some(_) => return Err(TokenizerError::EmptyChar),
+                    None => return Err(TokenizerError::UnterminatedChar),
+                };
 
-                if let Some(&(_, '\\')) = self.chars.peek() {
-                    let mut chars_clone = self.chars.clone();
-                    chars_clone.next();
-                    if let Some(&(_, after_slash_char)) = chars_clone.peek() {
-                        if Tokenizer::is_single_char_escape_sequence(after_slash_char) {
-                            // Actually consume the `\`
-                            self.chars.next();
-                            // Consume the `single char`
-                            self.chars.next();
-                        }
-                        // Covers invalid case 2: not a valid escape sequence
-                        return Err(TokenizerError::InvalidEscSeqChar);
-                    }
-                } else {
-                    // Covers invalid case 3: Not a Unicode scalar value
-                    // Fortunately, we don't need to check for Unicode scalar value here since Rust's char iterator gurantees
-                    // that it will return valid Unicode scalar values
-                    self.chars.next();
-                }
-
-                // Covers invalid case 4: two or more Unicode scalar values
-                // Covers invalid case 5: unclosed char, where `source` has further chars to process
-                if let Some(&(i, c)) = self.chars.peek() {
-                    if c != '\'' {
-                        return Err(TokenizerError::UnterminatedChar);
-                    }
-                    self.chars.next();
-                    return Ok(Token::new(
+                match self.chars.next() {
+                    Some((end, '\'')) => Ok(Token::new(
                         TokenKind::CharLiteral,
-                        Span::new(start, i + c.len_utf8()),
-                    ));
+                        Span::new(start, end + '\''.len_utf8()),
+                    )),
+                    Some(_) => Err(TokenizerError::UnterminatedChar),
+                    None => Err(TokenizerError::UnterminatedChar),
                 }
-                // Covers invalid case 5: unclosed char, where char content is the last char in the whole file
-                return Err(TokenizerError::UnterminatedChar);
             }
             '0'..='9' => {
                 let end = self.read_number(start);
@@ -412,48 +392,30 @@ mod tests {
         assert_eq!(token.kind, TokenKind::Struct);
     }
 
-     #[test]
+    #[test]
     fn test_valid_operators() {
-        let source = "!=";
+        let source = r"!=";
         let mut tokenizer = Tokenizer::new(source);
         let token = tokenizer.next().unwrap();
         assert_eq!(token.kind, TokenKind::BangEqual);
     }
 
-    // TODO: '\\' error
     #[test]
     fn test_valid_char() {
-        let source = "'a' '\n' '\r' '\t' '\0' '\\'";
+        let source = r"'a' '\n' '\r' '\t' '\0' '\\'";
         let mut tokenizer = Tokenizer::new(source);
 
-        let token = tokenizer.next().unwrap();
-        assert_eq!(token.kind, TokenKind::CharLiteral);
-        assert_eq!(token.lexeme(source), "'a'");
-
-        let token = tokenizer.next().unwrap();
-        assert_eq!(token.kind, TokenKind::CharLiteral);
-        assert_eq!(token.lexeme(source), "'\n'");
-
-        let token = tokenizer.next().unwrap();
-        assert_eq!(token.kind, TokenKind::CharLiteral);
-        assert_eq!(token.lexeme(source), "'\r'");
-
-        let token = tokenizer.next().unwrap();
-        assert_eq!(token.kind, TokenKind::CharLiteral);
-        assert_eq!(token.lexeme(source), "'\t'");
-
-        let token = tokenizer.next().unwrap();
-        assert_eq!(token.kind, TokenKind::CharLiteral);
-        assert_eq!(token.lexeme(source), "'\0'");
-
-        let token = tokenizer.next().unwrap();
-        assert_eq!(token.kind, TokenKind::CharLiteral);
-        assert_eq!(token.lexeme(source), "'\\'");
+        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'a'");
+        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\n'");
+        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\r'");
+        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\t'");
+        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\0'");
+        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\\'");
     }
 
     #[test]
     fn test_invalid_char_case_1() {
-        let source = "''";
+        let source = r"''";
         let mut tokenizer = Tokenizer::new(source);
         let token = tokenizer.next();
         assert_eq!(token, Err(TokenizerError::EmptyChar));
@@ -461,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_invalid_char_case_2() {
-        let source = "'\\a'";
+        let source = r"'\a'";
         let mut tokenizer = Tokenizer::new(source);
         let token = tokenizer.next();
         assert_eq!(token, Err(TokenizerError::InvalidEscSeqChar));
@@ -471,7 +433,7 @@ mod tests {
 
     #[test]
     fn test_invalid_char_case_4() {
-        let source = "'ab'";
+        let source = r"'ab'";
         let mut tokenizer = Tokenizer::new(source);
         let token = tokenizer.next();
         assert_eq!(token, Err(TokenizerError::UnterminatedChar));
@@ -479,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_invalid_char_case_5() {
-        let source = "'a";
+        let source = r"'a";
         let mut tokenizer = Tokenizer::new(source);
         let token = tokenizer.next();
         assert_eq!(token, Err(TokenizerError::UnterminatedChar));

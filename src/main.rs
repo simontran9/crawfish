@@ -12,9 +12,10 @@ fn main() {
                     process::exit(1);
                 }
             }
+            // TODO: write runner
             arg_parser::Command::Run(path) => {
                 if let Err(e) = runner::run(&path) {
-                    eprintln!("Error: Run failure. {:?}", e); // TODO: remove :?
+                    eprintln!("Error: Run failure. {:?}", e);
                     process::exit(1);
                 }
             }
