@@ -414,36 +414,30 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_char_case_1() {
+    fn test_empty_char() {
         let source = r"''";
         let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next();
-        assert_eq!(token, Err(TokenizerError::EmptyChar));
+        assert_eq!(tokenizer.next(), Err(TokenizerError::EmptyChar));
     }
 
     #[test]
-    fn test_invalid_char_case_2() {
+    fn test_invalid_single_char_esc_seq() {
         let source = r"'\a'";
         let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next();
-        assert_eq!(token, Err(TokenizerError::InvalidEscSeqChar));
+        assert_eq!(tokenizer.next(), Err(TokenizerError::InvalidEscSeqChar));
     }
 
-    // NOTE: invalid char case 3 isn't covered. See reason above.
-
     #[test]
-    fn test_invalid_char_case_4() {
+    fn test_more_than_one_char_in_char() {
         let source = r"'ab'";
         let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next();
-        assert_eq!(token, Err(TokenizerError::UnterminatedChar));
+        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
     }
 
     #[test]
-    fn test_invalid_char_case_5() {
+    fn test_unterminated_char() {
         let source = r"'a";
         let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next();
-        assert_eq!(token, Err(TokenizerError::UnterminatedChar));
+        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
     }
 }
