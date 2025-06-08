@@ -6,7 +6,6 @@ use std::str::CharIndices;
 #[derive(Debug, PartialEq)]
 pub enum TokenizerError {
     UnrecognizedCharacter(char),
-    WindowsLineEndingDisallowed,
     EmptyChar,
     UnterminatedChar,
     InvalidEscSeqChar,
@@ -59,6 +58,10 @@ impl<'a> Tokenizer<'a> {
             )),
             '{' => Ok(Token::new(
                 TokenKind::LeftCurlyBracket,
+                Span::new(start, start + c.len_utf8()),
+            )),
+            '}' => Ok(Token::new(
+                TokenKind::RightCurlyBracket,
                 Span::new(start, start + c.len_utf8()),
             )),
             '[' => Ok(Token::new(
@@ -257,7 +260,7 @@ impl<'a> Tokenizer<'a> {
                     Span::new(start, start + c.len_utf8()),
                 ))
             }
-            'a'..='z' | 'A'..='Z' | '_' => {
+            c if c.is_alphabetic() || c == '_' => {
                 let end = self.read_lexeme(start);
                 Ok(Token::new(
                     Token::lexeme_token_kind(&self.source[start..end]),
@@ -309,7 +312,6 @@ impl<'a> Tokenizer<'a> {
                 }
                 Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)))
             }
-            '\r' => Err(TokenizerError::WindowsLineEndingDisallowed),
             _ => Err(TokenizerError::UnrecognizedCharacter(c)),
         }
     }
@@ -439,5 +441,464 @@ mod tests {
         let source = r"'a";
         let mut tokenizer = Tokenizer::new(source);
         assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+    }
+
+    #[test]
+    fn test_single_char_tokens() {
+        let source = r"(){}[]~;.,";
+        let mut tokenizer = Tokenizer::new(source);
+        let kinds = [
+            TokenKind::LeftCircleBracket,
+            TokenKind::RightCircleBracket,
+            TokenKind::LeftCurlyBracket,
+            TokenKind::RightCurlyBracket,
+            TokenKind::LeftSquareBracket,
+            TokenKind::RightSquareBracket,
+            TokenKind::Tilde,
+            TokenKind::Semicolon,
+            TokenKind::Dot,
+            TokenKind::Comma,
+        ];
+
+        for kind in kinds {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, kind);
+        }
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_multi_char_operators() {
+        let source = r"& &= | |= ^ ^= :: : .. ..= == => -> != + +=";
+        let expected_kinds = [
+            TokenKind::Ampersand,
+            TokenKind::AmpersandEqual,
+            TokenKind::Pipe,
+            TokenKind::PipeEqual,
+            TokenKind::Caret,
+            TokenKind::CaretEqual,
+            TokenKind::DoubleColon,
+            TokenKind::Colon,
+            TokenKind::Ellipsis,
+            TokenKind::EllipsisEqual,
+            TokenKind::EqualEqual,
+            TokenKind::FatArrow,
+            TokenKind::SkinnyArrow,
+            TokenKind::BangEqual,
+            TokenKind::Plus,
+            TokenKind::PlusEqual,
+        ];
+
+        let mut tokenizer = Tokenizer::new(source);
+        for kind in expected_kinds {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, kind);
+        }
+    }
+
+    #[test]
+    fn test_arithmetic_and_assignment() {
+        let source = "+ += - -= * *= / /= % %=";
+        let expected_kinds = [
+            TokenKind::Plus,
+            TokenKind::PlusEqual,
+            TokenKind::Minus,
+            TokenKind::MinusEqual,
+            TokenKind::Asterisk,
+            TokenKind::AsteriskEqual,
+            TokenKind::Slash,
+            TokenKind::SlashEqual,
+            TokenKind::Percent,
+            TokenKind::PercentEqual,
+        ];
+
+        let mut tokenizer = Tokenizer::new(source);
+        for kind in expected_kinds {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, kind);
+        }
+    }
+
+    #[test]
+    fn test_comparisons_and_shift_operators() {
+        let source = "< <= << <<= > >= >> >>=";
+        let expected_kinds = [
+            TokenKind::LeftAngleBracket,
+            TokenKind::LeftAngleBracketEqual,
+            TokenKind::LeftAngleBracketLeftAngleBracket,
+            TokenKind::LeftAngleBracketLeftAngleBracketEqual,
+            TokenKind::RightAngleBracket,
+            TokenKind::RightAngleBracketEqual,
+            TokenKind::RightAngleBracketRightAngleBracket,
+            TokenKind::RightAngleBracketRightAngleBracketEqual,
+        ];
+
+        let mut tokenizer = Tokenizer::new(source);
+        for kind in expected_kinds {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, kind);
+        }
+    }
+
+    #[test]
+    fn test_identifier_and_keywords() {
+        let source = "foo bar struct if else while for";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let expected_kinds = [
+            TokenKind::Identifier,
+            TokenKind::Identifier,
+            TokenKind::Struct,
+            TokenKind::If,
+            TokenKind::Else,
+            TokenKind::While,
+            TokenKind::For,
+        ];
+
+        for kind in expected_kinds {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, kind);
+        }
+    }
+
+    #[test]
+    fn test_integer_and_float_literals() {
+        let source = "42 3.14 0 10.0 1.";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        // `1.` is not a float since there's no digit after the `.`
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+    }
+
+    #[test]
+    fn test_comments_are_skipped() {
+        let source = r"// this is a comment
+    var";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::Var);
+    }
+
+    #[test]
+    fn test_unrecognized_character() {
+        let source = "@";
+        let mut tokenizer = Tokenizer::new(source);
+        assert_eq!(
+            tokenizer.next(),
+            Err(TokenizerError::UnrecognizedCharacter('@'))
+        );
+    }
+
+    #[test]
+    fn test_char_escape_sequences() {
+        let source = "'\\\\'  '\\''  '\\\"'  '\\0'";
+        let mut tokenizer = Tokenizer::new(source);
+
+        for _ in 0..4 {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, TokenKind::CharLiteral);
+        }
+    }
+
+    #[test]
+    fn test_empty_source() {
+        let source = "";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_only_whitespace() {
+        let source = "   \t\n\r  ";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_only_comments() {
+        let source = "// first comment\n// second comment";
+        let mut tokenizer = Tokenizer::new(source);
+        let token = tokenizer.next().unwrap();
+        assert_eq!(token.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_comment_without_newline() {
+        let source = "var // comment at end of file";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let token1 = tokenizer.next().unwrap();
+        assert_eq!(token1.kind, TokenKind::Var);
+
+        let token2 = tokenizer.next().unwrap();
+        assert_eq!(token2.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_mixed_whitespace_and_tokens() {
+        let source = "  \t var  \n  42  \r\n  ";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let token1 = tokenizer.next().unwrap();
+        assert_eq!(token1.kind, TokenKind::Var);
+
+        let token2 = tokenizer.next().unwrap();
+        assert_eq!(token2.kind, TokenKind::IntegerLiteral);
+
+        let token3 = tokenizer.next().unwrap();
+        assert_eq!(token3.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_unicode_identifiers() {
+        let source = "café αβγ δεζ _underscore русский";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let token1 = tokenizer.next().unwrap();
+        assert_eq!(token1.kind, TokenKind::Identifier);
+        assert_eq!(token1.lexeme(source), "café");
+
+        let token2 = tokenizer.next().unwrap();
+        assert_eq!(token2.kind, TokenKind::Identifier);
+        assert_eq!(token2.lexeme(source), "αβγ");
+
+        let token3 = tokenizer.next().unwrap();
+        assert_eq!(token3.kind, TokenKind::Identifier);
+        assert_eq!(token3.lexeme(source), "δεζ");
+
+        let token4 = tokenizer.next().unwrap();
+        assert_eq!(token4.kind, TokenKind::Identifier);
+        assert_eq!(token4.lexeme(source), "_underscore");
+
+        let token5 = tokenizer.next().unwrap();
+        assert_eq!(token5.kind, TokenKind::Identifier);
+        assert_eq!(token5.lexeme(source), "русский");
+
+        let token6 = tokenizer.next().unwrap();
+        assert_eq!(token6.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_mixed_ascii_unicode_identifiers() {
+        let source = "hello世界 test123 _test_测试";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let token1 = tokenizer.next().unwrap();
+        assert_eq!(token1.kind, TokenKind::Identifier);
+        assert_eq!(token1.lexeme(source), "hello世界");
+
+        let token2 = tokenizer.next().unwrap();
+        assert_eq!(token2.kind, TokenKind::Identifier);
+        assert_eq!(token2.lexeme(source), "test123");
+
+        let token3 = tokenizer.next().unwrap();
+        assert_eq!(token3.kind, TokenKind::Identifier);
+        assert_eq!(token3.lexeme(source), "_test_测试");
+    }
+
+    #[test]
+    fn test_underscore_identifiers() {
+        let source = "_ _foo foo_ _foo_bar_ __double__";
+        let mut tokenizer = Tokenizer::new(source);
+
+        for _ in 0..5 {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, TokenKind::Identifier);
+        }
+
+        let eof = tokenizer.next().unwrap();
+        assert_eq!(eof.kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_numbers_with_leading_zeros() {
+        let source = "0 00 007 0123";
+        let mut tokenizer = Tokenizer::new(source);
+
+        for _ in 0..4 {
+            let token = tokenizer.next().unwrap();
+            assert_eq!(token.kind, TokenKind::IntegerLiteral);
+        }
+    }
+
+    #[test]
+    fn test_float_edge_cases() {
+        let source = "0.0 00.00 .5 1.";
+        let mut tokenizer = Tokenizer::new(source);
+
+        // 0.0
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        // 00.00
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        // .5 - should be dot followed by integer (not a float in this implementation)
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        // 1. - should be integer followed by dot
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+    }
+
+    #[test]
+    fn test_adjacent_tokens_no_whitespace() {
+        let source = "(){},;";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let expected = [
+            TokenKind::LeftCircleBracket,
+            TokenKind::RightCircleBracket,
+            TokenKind::LeftCurlyBracket,
+            TokenKind::RightCurlyBracket,
+            TokenKind::Comma,
+            TokenKind::Semicolon,
+        ];
+
+        for kind in expected {
+            assert_eq!(tokenizer.next().unwrap().kind, kind);
+        }
+    }
+
+    #[test]
+    fn test_operator_disambiguation() {
+        let source = "< <= << <<=";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::LeftAngleBracket);
+        assert_eq!(
+            tokenizer.next().unwrap().kind,
+            TokenKind::LeftAngleBracketEqual
+        );
+        assert_eq!(
+            tokenizer.next().unwrap().kind,
+            TokenKind::LeftAngleBracketLeftAngleBracket
+        );
+        assert_eq!(
+            tokenizer.next().unwrap().kind,
+            TokenKind::LeftAngleBracketLeftAngleBracketEqual
+        );
+    }
+
+    #[test]
+    fn test_ellipsis_variations() {
+        let source = ". .. ... ..= ...=";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Ellipsis);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Ellipsis);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EllipsisEqual);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Ellipsis);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Equal);
+    }
+
+    #[test]
+    fn test_char_with_quote_escape() {
+        let source = "'\\'' '\\\"'";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let token1 = tokenizer.next().unwrap();
+        assert_eq!(token1.kind, TokenKind::CharLiteral);
+        assert_eq!(token1.lexeme(source), "'\\''");
+
+        let token2 = tokenizer.next().unwrap();
+        assert_eq!(token2.kind, TokenKind::CharLiteral);
+        assert_eq!(token2.lexeme(source), "'\\\"'");
+    }
+
+    #[test]
+    fn test_unterminated_char_at_eof() {
+        let source = "'";
+        let mut tokenizer = Tokenizer::new(source);
+        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+    }
+
+    #[test]
+    fn test_unterminated_escape_at_eof() {
+        let source = r"'\";
+        let mut tokenizer = Tokenizer::new(source);
+        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+    }
+
+    #[test]
+    fn test_span_accuracy() {
+        let source = "hello world";
+        let mut tokenizer = Tokenizer::new(source);
+
+        let token1 = tokenizer.next().unwrap();
+        assert_eq!(token1.lexeme(source), "hello");
+
+        let token2 = tokenizer.next().unwrap();
+        assert_eq!(token2.lexeme(source), "world");
+    }
+
+    #[test]
+    fn test_multiple_consecutive_operators() {
+        let source = "==>>>===";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EqualEqual);
+        assert_eq!(
+            tokenizer.next().unwrap().kind,
+            TokenKind::RightAngleBracketRightAngleBracket
+        );
+        assert_eq!(
+            tokenizer.next().unwrap().kind,
+            TokenKind::RightAngleBracketEqual
+        );
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EqualEqual);
+    }
+
+    #[test]
+    fn test_various_unrecognized_characters() {
+        let unrecognized_chars = ['@', '#', '$', '?', '`'];
+
+        for &c in &unrecognized_chars {
+            let source = c.to_string();
+            let mut tokenizer = Tokenizer::new(&source);
+            assert_eq!(
+                tokenizer.next(),
+                Err(TokenizerError::UnrecognizedCharacter(c))
+            );
+        }
+    }
+
+    #[test]
+    fn test_bom_with_following_content() {
+        let source = "\u{FEFF}var x = 42;";
+        let mut tokenizer = Tokenizer::new(source);
+
+        // BOM should be skipped, first token should be 'var'
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Equal);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Semicolon);
+    }
+
+    #[test]
+    fn test_long_number_sequences() {
+        let source = "123456789 987654321.123456789";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+    }
+
+    #[test]
+    fn test_comment_after_various_tokens() {
+        let source = "var // comment\n42 // another comment\n";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
     }
 }
