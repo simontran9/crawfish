@@ -1,5 +1,15 @@
 # Compiler Design
 
+## Front end
+
+### Tokenizer
+
+### Abstract Syntax Tree and Parser
+
+### Semantic Analyzer
+
+## Back end
+
 ## Resources
 
 I used a ton of resources. Here are a few notable ones:

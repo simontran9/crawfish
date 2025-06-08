@@ -2,7 +2,9 @@
 
 ## Addition 1
 
-- Runner mode
+- make runner mode
+- add bench step to ci
+- add pre-packaged binaries and add step to ci
 
 ## Addition 2
 
