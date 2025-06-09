@@ -1,7 +1,7 @@
 <div align="center">
   <img width="200px" src="docs/crawfish.png">
   <h1>crawfish</h1>
-  <p>simple programming language</p>
+  <p>simple programming language for the layman</p>
 </div>
 
 ## Installation (building from source)
@@ -16,7 +16,7 @@
 1. Git clone the repository
 
 ```sh
-git clone https://github.com/simontran9/crawfish.git
+git clone https://github.com/simontran7/crawfish.git
 ```
 
 2. `cd` into the `crawfish/` directory, then build the project with zig's build system
