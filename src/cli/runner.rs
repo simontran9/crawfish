@@ -1,8 +1,6 @@
+use std::error::Error;
 use std::path::Path;
 
-#[derive(Debug)]
-pub enum RunError {}
-
-pub fn run(p: &Path) -> Result<(), RunError> {
-    todo!()
+pub fn run(_path: &Path) -> Result<(), Box<dyn Error>> {
+    Err("Runner not implemented yet".into())
 }

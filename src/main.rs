@@ -8,11 +8,10 @@ fn main() {
         Ok(command) => match command {
             arg_parser::Command::Build(path) => {
                 if let Err(e) = builder::build(&path) {
-                    eprintln!("Error: Compilation failure. {:?}", e); // TODO: remove :?
+                    eprintln!("Error: Compilation failure. {:?}", e);
                     process::exit(1);
                 }
             }
-            // TODO: write runner
             arg_parser::Command::Run(path) => {
                 if let Err(e) = runner::run(&path) {
                     eprintln!("Error: Run failure. {:?}", e);

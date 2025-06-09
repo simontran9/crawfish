@@ -1,8 +1,9 @@
 use crate::front_end::token::{Span, Token, TokenKind};
+use std::error::Error;
+use std::fmt;
 use std::iter::Peekable;
 use std::str::CharIndices;
 
-// TODO: implement fmt::Display
 #[derive(Debug, PartialEq)]
 pub enum TokenizerError {
     UnrecognizedCharacter(char),
@@ -10,6 +11,23 @@ pub enum TokenizerError {
     UnterminatedChar,
     InvalidEscSeqChar,
 }
+
+impl fmt::Display for TokenizerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TokenizerError::UnrecognizedCharacter(c) => {
+                write!(f, "Unrecognized character: '{}'", c)
+            }
+            TokenizerError::EmptyChar => write!(f, "Empty character literal"),
+            TokenizerError::UnterminatedChar => write!(f, "Unterminated character literal"),
+            TokenizerError::InvalidEscSeqChar => {
+                write!(f, "Invalid escape sequence in character literal")
+            }
+        }
+    }
+}
+
+impl Error for TokenizerError {}
 
 /// Tokenizer
 /// - `source` is a string slice to the original source code
