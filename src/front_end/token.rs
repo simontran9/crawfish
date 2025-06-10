@@ -1,4 +1,4 @@
-//! Token and token-related data structures
+//! Token and token related data structures
 
 /// Token type
 #[derive(Debug, PartialEq)]

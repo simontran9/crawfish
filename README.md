@@ -1,7 +1,7 @@
 <div align="center">
   <img width="200px" src="docs/crawfish.png">
   <h1>crawfish</h1>
-  <p>simple programming language for the layman</p>
+  <p>Simple programming language for the layman.</p>
 </div>
 
 ## Installation (building from source)

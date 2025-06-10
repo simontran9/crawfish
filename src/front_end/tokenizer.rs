@@ -1,3 +1,4 @@
+//! Tokenizer that turns source code into tokens
 use crate::front_end::token::{Span, Token, TokenKind};
 use std::error::Error;
 use std::fmt;
@@ -56,281 +57,305 @@ impl<'a> Tokenizer<'a> {
 
     /// Returns the next token
     pub fn next(&mut self) -> Result<Token, TokenizerError> {
-        self.skip_whitespace();
+        // Use an iterative loop instead of recursion to handle comments
+        loop {
+            self.skip_whitespace();
 
-        let Some((start, c)) = self.chars.next() else {
-            return Ok(Token::new(
-                TokenKind::EOF,
-                Span::new(self.source.len(), self.source.len()),
-            ));
-        };
+            let Some((start, c)) = self.chars.next() else {
+                return Ok(Token::new(
+                    TokenKind::EOF,
+                    Span::new(self.source.len(), self.source.len()),
+                ));
+            };
 
-        match c {
-            '(' => Ok(Token::new(
-                TokenKind::LeftCircleBracket,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            ')' => Ok(Token::new(
-                TokenKind::RightCircleBracket,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '{' => Ok(Token::new(
-                TokenKind::LeftCurlyBracket,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '}' => Ok(Token::new(
-                TokenKind::RightCurlyBracket,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '[' => Ok(Token::new(
-                TokenKind::LeftSquareBracket,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            ']' => Ok(Token::new(
-                TokenKind::RightSquareBracket,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '&' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::AmpersandEqual, Span::new(start, end)));
+            match c {
+                '(' => {
+                    return Ok(Token::new(
+                        TokenKind::LeftCircleBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
                 }
-                Ok(Token::new(
-                    TokenKind::Ampersand,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '~' => Ok(Token::new(
-                TokenKind::Tilde,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '|' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::PipeEqual, Span::new(start, end)));
+                ')' => {
+                    return Ok(Token::new(
+                        TokenKind::RightCircleBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
                 }
-                Ok(Token::new(
-                    TokenKind::Pipe,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '^' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::CaretEqual, Span::new(start, end)));
+                '{' => {
+                    return Ok(Token::new(
+                        TokenKind::LeftCurlyBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
                 }
-                Ok(Token::new(
-                    TokenKind::Caret,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            ':' => {
-                if let Some(end) = self.match_next(':') {
-                    return Ok(Token::new(TokenKind::DoubleColon, Span::new(start, end)));
+                '}' => {
+                    return Ok(Token::new(
+                        TokenKind::RightCurlyBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
                 }
-                Ok(Token::new(
-                    TokenKind::Colon,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            ';' => Ok(Token::new(
-                TokenKind::Semicolon,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '.' => {
-                if let Some(&(dot_idx, '.')) = self.chars.peek() {
-                    self.chars.next();
+                '[' => {
+                    return Ok(Token::new(
+                        TokenKind::LeftSquareBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                ']' => {
+                    return Ok(Token::new(
+                        TokenKind::RightSquareBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '&' => {
                     if let Some(end) = self.match_next('=') {
-                        return Ok(Token::new(TokenKind::EllipsisEqual, Span::new(start, end)));
+                        return Ok(Token::new(TokenKind::AmpersandEqual, Span::new(start, end)));
                     }
                     return Ok(Token::new(
-                        TokenKind::Ellipsis,
-                        Span::new(start, dot_idx + 1),
+                        TokenKind::Ampersand,
+                        Span::new(start, start + c.len_utf8()),
                     ));
                 }
-                Ok(Token::new(
-                    TokenKind::Dot,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            ',' => Ok(Token::new(
-                TokenKind::Comma,
-                Span::new(start, start + c.len_utf8()),
-            )),
-            '=' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::EqualEqual, Span::new(start, end)));
-                }
-                if let Some(end) = self.match_next('>') {
-                    return Ok(Token::new(TokenKind::FatArrow, Span::new(start, end)));
-                }
-                Ok(Token::new(
-                    TokenKind::Equal,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '!' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::BangEqual, Span::new(start, end)));
-                }
-                Ok(Token::new(
-                    TokenKind::Bang,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '+' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::PlusEqual, Span::new(start, end)));
-                }
-                Ok(Token::new(
-                    TokenKind::Plus,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '-' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::MinusEqual, Span::new(start, end)));
-                }
-                if let Some(end) = self.match_next('>') {
-                    return Ok(Token::new(TokenKind::SkinnyArrow, Span::new(start, end)));
-                }
-                Ok(Token::new(
-                    TokenKind::Minus,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '*' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::AsteriskEqual, Span::new(start, end)));
-                }
-                Ok(Token::new(
-                    TokenKind::Asterisk,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '/' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::SlashEqual, Span::new(start, end)));
-                }
-                if let Some(&(_, '/')) = self.chars.peek() {
-                    self.chars.next();
-                    self.skip_comment();
-                    return self.next();
-                }
-                Ok(Token::new(
-                    TokenKind::Slash,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '%' => {
-                if let Some(end) = self.match_next('=') {
-                    return Ok(Token::new(TokenKind::PercentEqual, Span::new(start, end)));
-                }
-                Ok(Token::new(
-                    TokenKind::Percent,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '>' => {
-                if let Some(end) = self.match_next('=') {
+                '~' => {
                     return Ok(Token::new(
-                        TokenKind::RightAngleBracketEqual,
-                        Span::new(start, end),
+                        TokenKind::Tilde,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '|' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::PipeEqual, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Pipe,
+                        Span::new(start, start + c.len_utf8()),
                     ));
                 }
-                if let Some(&(gt_idx, '>')) = self.chars.peek() {
-                    self.chars.next();
+                '^' => {
                     if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::CaretEqual, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Caret,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                ':' => {
+                    if let Some(end) = self.match_next(':') {
+                        return Ok(Token::new(TokenKind::DoubleColon, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Colon,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                ';' => {
+                    return Ok(Token::new(
+                        TokenKind::Semicolon,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '.' => {
+                    if let Some(&(dot_idx, '.')) = self.chars.peek() {
+                        self.chars.next();
+                        if let Some(end) = self.match_next('=') {
+                            return Ok(Token::new(TokenKind::EllipsisEqual, Span::new(start, end)));
+                        }
                         return Ok(Token::new(
-                            TokenKind::RightAngleBracketRightAngleBracketEqual,
-                            Span::new(start, end),
+                            TokenKind::Ellipsis,
+                            Span::new(start, dot_idx + 1),
                         ));
                     }
                     return Ok(Token::new(
-                        TokenKind::RightAngleBracketRightAngleBracket,
-                        Span::new(start, gt_idx + '>'.len_utf8()),
+                        TokenKind::Dot,
+                        Span::new(start, start + c.len_utf8()),
                     ));
                 }
-                Ok(Token::new(
-                    TokenKind::RightAngleBracket,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            '<' => {
-                if let Some(end) = self.match_next('=') {
+                ',' => {
                     return Ok(Token::new(
-                        TokenKind::LeftAngleBracketEqual,
-                        Span::new(start, end),
+                        TokenKind::Comma,
+                        Span::new(start, start + c.len_utf8()),
+                    ))
+                }
+                '=' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::EqualEqual, Span::new(start, end)));
+                    }
+                    if let Some(end) = self.match_next('>') {
+                        return Ok(Token::new(TokenKind::FatArrow, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Equal,
+                        Span::new(start, start + c.len_utf8()),
                     ));
                 }
-                if let Some(&(gt_idx, '<')) = self.chars.peek() {
-                    self.chars.next();
+                '!' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::BangEqual, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Bang,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                '+' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::PlusEqual, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Plus,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                '-' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::MinusEqual, Span::new(start, end)));
+                    }
+                    if let Some(end) = self.match_next('>') {
+                        return Ok(Token::new(TokenKind::SkinnyArrow, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Minus,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                '*' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::AsteriskEqual, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Asterisk,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                '/' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::SlashEqual, Span::new(start, end)));
+                    }
+                    if let Some(&(_, '/')) = self.chars.peek() {
+                        self.chars.next();
+                        self.skip_comment();
+                        // Continue the loop instead of recursing
+                        continue;
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Slash,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                '%' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(TokenKind::PercentEqual, Span::new(start, end)));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::Percent,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                '>' => {
                     if let Some(end) = self.match_next('=') {
                         return Ok(Token::new(
-                            TokenKind::LeftAngleBracketLeftAngleBracketEqual,
+                            TokenKind::RightAngleBracketEqual,
                             Span::new(start, end),
                         ));
                     }
-                    return Ok(Token::new(
-                        TokenKind::LeftAngleBracketLeftAngleBracket,
-                        Span::new(start, gt_idx + '<'.len_utf8()),
-                    ));
-                }
-                Ok(Token::new(
-                    TokenKind::LeftAngleBracket,
-                    Span::new(start, start + c.len_utf8()),
-                ))
-            }
-            c if c.is_alphabetic() || c == '_' => {
-                let end = self.read_lexeme(start);
-                Ok(Token::new(
-                    Token::lexeme_token_kind(&self.source[start..end]),
-                    Span::new(start, end),
-                ))
-            }
-            '\'' => {
-                match self.chars.next() {
-                    Some((_, '\\')) => match self.chars.next() {
-                        Some((_, c)) if Self::is_single_char_escape_sequence(c) => (),
-                        Some(_) => return Err(TokenizerError::InvalidEscSeqChar),
-                        None => return Err(TokenizerError::UnterminatedChar),
-                    },
-                    Some((_, c)) if c != '\'' => (),
-                    Some(_) => return Err(TokenizerError::EmptyChar),
-                    None => return Err(TokenizerError::UnterminatedChar),
-                };
-
-                match self.chars.next() {
-                    Some((end, '\'')) => Ok(Token::new(
-                        TokenKind::CharLiteral,
-                        Span::new(start, end + '\''.len_utf8()),
-                    )),
-                    Some(_) => Err(TokenizerError::UnterminatedChar),
-                    None => Err(TokenizerError::UnterminatedChar),
-                }
-            }
-            '0'..='9' => {
-                let end = self.read_number(start);
-                if let Some(&(_, '.')) = self.chars.peek() {
-                    // Save state, without having to modify the actual underlying iterator, via `clone()`,
-                    // before consuming the dot to rewind as necessary
-                    let mut chars_clone = self.chars.clone();
-                    chars_clone.next();
-                    if let Some(&(after_dot_idx, after_dot_char)) = chars_clone.peek() {
-                        // Fraction detected, so we consume the dot on the actual underlying iterator,
-                        // and read the rest to see if it is indeed a float
-                        if after_dot_char.is_ascii_digit() {
-                            self.chars.next();
-                            let float_end = self.read_number(after_dot_idx);
+                    if let Some(&(gt_idx, '>')) = self.chars.peek() {
+                        self.chars.next();
+                        if let Some(end) = self.match_next('=') {
                             return Ok(Token::new(
-                                TokenKind::FloatLiteral,
-                                Span::new(start, float_end),
+                                TokenKind::RightAngleBracketRightAngleBracketEqual,
+                                Span::new(start, end),
                             ));
                         }
+                        return Ok(Token::new(
+                            TokenKind::RightAngleBracketRightAngleBracket,
+                            Span::new(start, gt_idx + '>'.len_utf8()),
+                        ));
                     }
-                    // If it wasn't a float, then we didn't modify the actual underlying iterator, so not an issue
-                    // and we remain at the last number right before the dot
+                    return Ok(Token::new(
+                        TokenKind::RightAngleBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
                 }
-                Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)))
+                '<' => {
+                    if let Some(end) = self.match_next('=') {
+                        return Ok(Token::new(
+                            TokenKind::LeftAngleBracketEqual,
+                            Span::new(start, end),
+                        ));
+                    }
+                    if let Some(&(gt_idx, '<')) = self.chars.peek() {
+                        self.chars.next();
+                        if let Some(end) = self.match_next('=') {
+                            return Ok(Token::new(
+                                TokenKind::LeftAngleBracketLeftAngleBracketEqual,
+                                Span::new(start, end),
+                            ));
+                        }
+                        return Ok(Token::new(
+                            TokenKind::LeftAngleBracketLeftAngleBracket,
+                            Span::new(start, gt_idx + '<'.len_utf8()),
+                        ));
+                    }
+                    return Ok(Token::new(
+                        TokenKind::LeftAngleBracket,
+                        Span::new(start, start + c.len_utf8()),
+                    ));
+                }
+                c if c.is_alphabetic() || c == '_' => {
+                    let end = self.read_lexeme(start);
+                    return Ok(Token::new(
+                        Token::lexeme_token_kind(&self.source[start..end]),
+                        Span::new(start, end),
+                    ));
+                }
+                '\'' => {
+                    match self.chars.next() {
+                        Some((_, '\\')) => match self.chars.next() {
+                            Some((_, c)) if Self::is_single_char_escape_sequence(c) => (),
+                            Some(_) => return Err(TokenizerError::InvalidEscSeqChar),
+                            None => return Err(TokenizerError::UnterminatedChar),
+                        },
+                        Some((_, c)) if c != '\'' => (),
+                        Some(_) => return Err(TokenizerError::EmptyChar),
+                        None => return Err(TokenizerError::UnterminatedChar),
+                    };
+
+                    match self.chars.next() {
+                        Some((end, '\'')) => {
+                            return Ok(Token::new(
+                                TokenKind::CharLiteral,
+                                Span::new(start, end + '\''.len_utf8()),
+                            ))
+                        }
+                        Some(_) => return Err(TokenizerError::UnterminatedChar),
+                        None => return Err(TokenizerError::UnterminatedChar),
+                    }
+                }
+                '0'..='9' => {
+                    let end = self.read_number(start);
+                    if let Some(&(_, '.')) = self.chars.peek() {
+                        // Save state, without having to modify the actual underlying iterator, via `clone()`,
+                        // before consuming the dot to rewind as necessary
+                        let mut chars_clone = self.chars.clone();
+                        chars_clone.next();
+                        if let Some(&(after_dot_idx, after_dot_char)) = chars_clone.peek() {
+                            // Fraction detected, so we consume the dot on the actual underlying iterator,
+                            // and read the rest to see if it is indeed a float
+                            if after_dot_char.is_ascii_digit() {
+                                self.chars.next();
+                                let float_end = self.read_number(after_dot_idx);
+                                return Ok(Token::new(
+                                    TokenKind::FloatLiteral,
+                                    Span::new(start, float_end),
+                                ));
+                            }
+                        }
+                        // If it wasn't a float, then we didn't modify the actual underlying iterator, so not an issue
+                        // and we remain at the last number right before the dot
+                    }
+                    return Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)));
+                }
+                _ => return Err(TokenizerError::UnrecognizedCharacter(c)),
             }
-            _ => Err(TokenizerError::UnrecognizedCharacter(c)),
         }
     }
 
@@ -393,16 +418,88 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn is_single_char_escape_sequence(c: char) -> bool {
-        match c {
-            'n' | 'r' | 't' | '0' | '\\' | '\'' | '\"' => true,
-            _ => false,
-        }
+        matches!(c, 'n' | 'r' | 't' | '0' | '\\' | '\'' | '\"')
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_many_consecutive_comments() {
+        // Test with many consecutive comment lines to ensure no stack overflow
+        let mut source = String::new();
+        for i in 0..10000 {
+            source.push_str(&format!("// Comment line {}\n", i));
+        }
+        source.push_str("var x = 42;");
+
+        let mut tokenizer = Tokenizer::new(&source);
+
+        // Should skip all comments and find the variable declaration
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Equal);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_pathological_comment_input() {
+        // Test with alternating comments and whitespace
+        let mut source = String::new();
+        for i in 0..5000 {
+            source.push_str(&format!("   // Comment {}\n   ", i));
+        }
+        source.push_str("struct Test;");
+
+        let mut tokenizer = Tokenizer::new(&source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Struct);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_comment_at_eof() {
+        let source = "var x // comment at end";
+        let mut tokenizer = Tokenizer::new(source);
+
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_nested_comment_structure() {
+        // Test structure that could cause issues with naive recursive approach
+        let source = r#"
+            var a = 1; // comment 1
+            // comment 2
+            var b = 2; // comment 3
+            // comment 4
+            // comment 5
+            var c = 3;
+        "#;
+
+        let mut tokenizer = Tokenizer::new(source);
+
+        // Should correctly parse all variable declarations
+        let mut var_count = 0;
+        loop {
+            let token = tokenizer.next().unwrap();
+            if token.kind == TokenKind::Var {
+                var_count += 1;
+            } else if token.kind == TokenKind::EOF {
+                break;
+            }
+        }
+
+        assert_eq!(var_count, 3);
+    }
 
     #[test]
     fn test_bom_is_skipped() {
