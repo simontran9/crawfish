@@ -1,4 +1,4 @@
-//! Tokenizer that turns source code into tokens
+//! Hand written lexer (i.e. scanner + tokenizer) that turns source code into tokens
 use crate::front_end::token::{Span, Token, TokenKind};
 use std::error::Error;
 use std::fmt;
@@ -6,43 +6,43 @@ use std::iter::Peekable;
 use std::str::CharIndices;
 
 #[derive(Debug, PartialEq)]
-pub enum TokenizerError {
+pub enum LexerError {
     UnrecognizedCharacter(char),
     EmptyChar,
     UnterminatedChar,
     InvalidEscSeqChar,
 }
 
-impl fmt::Display for TokenizerError {
+impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenizerError::UnrecognizedCharacter(c) => {
+            LexerError::UnrecognizedCharacter(c) => {
                 write!(f, "Unrecognized character: '{}'", c)
             }
-            TokenizerError::EmptyChar => write!(f, "Empty character literal"),
-            TokenizerError::UnterminatedChar => write!(f, "Unterminated character literal"),
-            TokenizerError::InvalidEscSeqChar => {
+            LexerError::EmptyChar => write!(f, "Empty character literal"),
+            LexerError::UnterminatedChar => write!(f, "Unterminated character literal"),
+            LexerError::InvalidEscSeqChar => {
                 write!(f, "Invalid escape sequence in character literal")
             }
         }
     }
 }
 
-impl Error for TokenizerError {}
+impl Error for LexerError {}
 
-/// Tokenizer
+/// Lexer
 /// - `source` is a string slice to the original source code
 /// - `chars` is an iterator that returns `(index, character)` elements
 ///    and supports lookahead out of the box
-pub struct Tokenizer<'a> {
+pub struct Lexer<'a> {
     source: &'a str,
     chars: Peekable<CharIndices<'a>>,
 }
 
-impl<'a> Tokenizer<'a> {
+impl<'a> Lexer<'a> {
     const BOM: char = '\u{FEFF}';
 
-    /// Returns a tokenizer iterator
+    /// Returns a lexer iterator
     pub fn new(source: &'a str) -> Self {
         let mut chars = source.char_indices().peekable();
 
@@ -56,7 +56,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Returns the next token
-    pub fn next(&mut self) -> Result<Token, TokenizerError> {
+    pub fn next(&mut self) -> Result<Token, LexerError> {
         // Use an iterative loop instead of recursion to handle comments
         loop {
             self.skip_whitespace();
@@ -311,12 +311,12 @@ impl<'a> Tokenizer<'a> {
                     match self.chars.next() {
                         Some((_, '\\')) => match self.chars.next() {
                             Some((_, c)) if Self::is_single_char_escape_sequence(c) => (),
-                            Some(_) => return Err(TokenizerError::InvalidEscSeqChar),
-                            None => return Err(TokenizerError::UnterminatedChar),
+                            Some(_) => return Err(LexerError::InvalidEscSeqChar),
+                            None => return Err(LexerError::UnterminatedChar),
                         },
                         Some((_, c)) if c != '\'' => (),
-                        Some(_) => return Err(TokenizerError::EmptyChar),
-                        None => return Err(TokenizerError::UnterminatedChar),
+                        Some(_) => return Err(LexerError::EmptyChar),
+                        None => return Err(LexerError::UnterminatedChar),
                     };
 
                     match self.chars.next() {
@@ -326,8 +326,8 @@ impl<'a> Tokenizer<'a> {
                                 Span::new(start, end + '\''.len_utf8()),
                             ))
                         }
-                        Some(_) => return Err(TokenizerError::UnterminatedChar),
-                        None => return Err(TokenizerError::UnterminatedChar),
+                        Some(_) => return Err(LexerError::UnterminatedChar),
+                        None => return Err(LexerError::UnterminatedChar),
                     }
                 }
                 '0'..='9' => {
@@ -354,7 +354,7 @@ impl<'a> Tokenizer<'a> {
                     }
                     return Ok(Token::new(TokenKind::IntegerLiteral, Span::new(start, end)));
                 }
-                _ => return Err(TokenizerError::UnrecognizedCharacter(c)),
+                _ => return Err(LexerError::UnrecognizedCharacter(c)),
             }
         }
     }
@@ -435,15 +435,15 @@ mod tests {
         }
         source.push_str("var x = 42;");
 
-        let mut tokenizer = Tokenizer::new(&source);
+        let mut lexer = Lexer::new(&source);
 
         // Should skip all comments and find the variable declaration
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Equal);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Semicolon);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Equal);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EOF);
     }
 
     #[test]
@@ -455,22 +455,22 @@ mod tests {
         }
         source.push_str("struct Test;");
 
-        let mut tokenizer = Tokenizer::new(&source);
+        let mut lexer = Lexer::new(&source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Struct);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Semicolon);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Struct);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_comment_at_eof() {
         let source = "var x // comment at end";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EOF);
     }
 
     #[test]
@@ -485,12 +485,12 @@ mod tests {
             var c = 3;
         "#;
 
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         // Should correctly parse all variable declarations
         let mut var_count = 0;
         loop {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             if token.kind == TokenKind::Var {
                 var_count += 1;
             } else if token.kind == TokenKind::EOF {
@@ -504,64 +504,64 @@ mod tests {
     #[test]
     fn test_bom_is_skipped() {
         let source = "\u{FEFF}struct";
-        let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next().unwrap();
+        let mut lexer = Lexer::new(source);
+        let token = lexer.next().unwrap();
         assert_eq!(token.kind, TokenKind::Struct);
     }
 
     #[test]
     fn test_valid_operators() {
         let source = r"!=";
-        let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next().unwrap();
+        let mut lexer = Lexer::new(source);
+        let token = lexer.next().unwrap();
         assert_eq!(token.kind, TokenKind::BangEqual);
     }
 
     #[test]
     fn test_valid_char() {
         let source = r"'a' '\n' '\r' '\t' '\0' '\\'";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'a'");
-        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\n'");
-        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\r'");
-        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\t'");
-        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\0'");
-        assert_eq!(tokenizer.next().unwrap().lexeme(source), r"'\\'");
+        assert_eq!(lexer.next().unwrap().lexeme(source), r"'a'");
+        assert_eq!(lexer.next().unwrap().lexeme(source), r"'\n'");
+        assert_eq!(lexer.next().unwrap().lexeme(source), r"'\r'");
+        assert_eq!(lexer.next().unwrap().lexeme(source), r"'\t'");
+        assert_eq!(lexer.next().unwrap().lexeme(source), r"'\0'");
+        assert_eq!(lexer.next().unwrap().lexeme(source), r"'\\'");
     }
 
     #[test]
     fn test_empty_char() {
         let source = r"''";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(tokenizer.next(), Err(TokenizerError::EmptyChar));
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::EmptyChar));
     }
 
     #[test]
     fn test_invalid_single_char_esc_seq() {
         let source = r"'\a'";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(tokenizer.next(), Err(TokenizerError::InvalidEscSeqChar));
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::InvalidEscSeqChar));
     }
 
     #[test]
     fn test_more_than_one_char_in_char() {
         let source = r"'ab'";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::UnterminatedChar));
     }
 
     #[test]
     fn test_unterminated_char() {
         let source = r"'a";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::UnterminatedChar));
     }
 
     #[test]
     fn test_single_char_tokens() {
         let source = r"(){}[]~;.,";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
         let kinds = [
             TokenKind::LeftCircleBracket,
             TokenKind::RightCircleBracket,
@@ -576,10 +576,10 @@ mod tests {
         ];
 
         for kind in kinds {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, kind);
         }
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EOF);
     }
 
     #[test]
@@ -604,9 +604,9 @@ mod tests {
             TokenKind::PlusEqual,
         ];
 
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
         for kind in expected_kinds {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, kind);
         }
     }
@@ -627,9 +627,9 @@ mod tests {
             TokenKind::PercentEqual,
         ];
 
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
         for kind in expected_kinds {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, kind);
         }
     }
@@ -648,9 +648,9 @@ mod tests {
             TokenKind::RightAngleBracketRightAngleBracketEqual,
         ];
 
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
         for kind in expected_kinds {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, kind);
         }
     }
@@ -658,7 +658,7 @@ mod tests {
     #[test]
     fn test_identifier_and_keywords() {
         let source = "foo bar struct if else while for";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         let expected_kinds = [
             TokenKind::Identifier,
@@ -671,7 +671,7 @@ mod tests {
         ];
 
         for kind in expected_kinds {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, kind);
         }
     }
@@ -679,43 +679,40 @@ mod tests {
     #[test]
     fn test_integer_and_float_literals() {
         let source = "42 3.14 0 10.0 1.";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::FloatLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::FloatLiteral);
         // `1.` is not a float since there's no digit after the `.`
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Dot);
     }
 
     #[test]
     fn test_comments_are_skipped() {
         let source = r"// this is a comment
     var";
-        let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next().unwrap();
+        let mut lexer = Lexer::new(source);
+        let token = lexer.next().unwrap();
         assert_eq!(token.kind, TokenKind::Var);
     }
 
     #[test]
     fn test_unrecognized_character() {
         let source = "@";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(
-            tokenizer.next(),
-            Err(TokenizerError::UnrecognizedCharacter('@'))
-        );
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::UnrecognizedCharacter('@')));
     }
 
     #[test]
     fn test_char_escape_sequences() {
         let source = "'\\\\'  '\\''  '\\\"'  '\\0'";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         for _ in 0..4 {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, TokenKind::CharLiteral);
         }
     }
@@ -723,97 +720,97 @@ mod tests {
     #[test]
     fn test_empty_source() {
         let source = "";
-        let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next().unwrap();
+        let mut lexer = Lexer::new(source);
+        let token = lexer.next().unwrap();
         assert_eq!(token.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_only_whitespace() {
         let source = "   \t\n\r  ";
-        let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next().unwrap();
+        let mut lexer = Lexer::new(source);
+        let token = lexer.next().unwrap();
         assert_eq!(token.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_only_comments() {
         let source = "// first comment\n// second comment";
-        let mut tokenizer = Tokenizer::new(source);
-        let token = tokenizer.next().unwrap();
+        let mut lexer = Lexer::new(source);
+        let token = lexer.next().unwrap();
         assert_eq!(token.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_comment_without_newline() {
         let source = "var // comment at end of file";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        let token1 = tokenizer.next().unwrap();
+        let token1 = lexer.next().unwrap();
         assert_eq!(token1.kind, TokenKind::Var);
 
-        let token2 = tokenizer.next().unwrap();
+        let token2 = lexer.next().unwrap();
         assert_eq!(token2.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_mixed_whitespace_and_tokens() {
         let source = "  \t var  \n  42  \r\n  ";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        let token1 = tokenizer.next().unwrap();
+        let token1 = lexer.next().unwrap();
         assert_eq!(token1.kind, TokenKind::Var);
 
-        let token2 = tokenizer.next().unwrap();
+        let token2 = lexer.next().unwrap();
         assert_eq!(token2.kind, TokenKind::IntegerLiteral);
 
-        let token3 = tokenizer.next().unwrap();
+        let token3 = lexer.next().unwrap();
         assert_eq!(token3.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_unicode_identifiers() {
         let source = "café αβγ δεζ _underscore русский";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        let token1 = tokenizer.next().unwrap();
+        let token1 = lexer.next().unwrap();
         assert_eq!(token1.kind, TokenKind::Identifier);
         assert_eq!(token1.lexeme(source), "café");
 
-        let token2 = tokenizer.next().unwrap();
+        let token2 = lexer.next().unwrap();
         assert_eq!(token2.kind, TokenKind::Identifier);
         assert_eq!(token2.lexeme(source), "αβγ");
 
-        let token3 = tokenizer.next().unwrap();
+        let token3 = lexer.next().unwrap();
         assert_eq!(token3.kind, TokenKind::Identifier);
         assert_eq!(token3.lexeme(source), "δεζ");
 
-        let token4 = tokenizer.next().unwrap();
+        let token4 = lexer.next().unwrap();
         assert_eq!(token4.kind, TokenKind::Identifier);
         assert_eq!(token4.lexeme(source), "_underscore");
 
-        let token5 = tokenizer.next().unwrap();
+        let token5 = lexer.next().unwrap();
         assert_eq!(token5.kind, TokenKind::Identifier);
         assert_eq!(token5.lexeme(source), "русский");
 
-        let token6 = tokenizer.next().unwrap();
+        let token6 = lexer.next().unwrap();
         assert_eq!(token6.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_mixed_ascii_unicode_identifiers() {
         let source = "hello世界 test123 _test_测试";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        let token1 = tokenizer.next().unwrap();
+        let token1 = lexer.next().unwrap();
         assert_eq!(token1.kind, TokenKind::Identifier);
         assert_eq!(token1.lexeme(source), "hello世界");
 
-        let token2 = tokenizer.next().unwrap();
+        let token2 = lexer.next().unwrap();
         assert_eq!(token2.kind, TokenKind::Identifier);
         assert_eq!(token2.lexeme(source), "test123");
 
-        let token3 = tokenizer.next().unwrap();
+        let token3 = lexer.next().unwrap();
         assert_eq!(token3.kind, TokenKind::Identifier);
         assert_eq!(token3.lexeme(source), "_test_测试");
     }
@@ -821,24 +818,24 @@ mod tests {
     #[test]
     fn test_underscore_identifiers() {
         let source = "_ _foo foo_ _foo_bar_ __double__";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         for _ in 0..5 {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, TokenKind::Identifier);
         }
 
-        let eof = tokenizer.next().unwrap();
+        let eof = lexer.next().unwrap();
         assert_eq!(eof.kind, TokenKind::EOF);
     }
 
     #[test]
     fn test_numbers_with_leading_zeros() {
         let source = "0 00 007 0123";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         for _ in 0..4 {
-            let token = tokenizer.next().unwrap();
+            let token = lexer.next().unwrap();
             assert_eq!(token.kind, TokenKind::IntegerLiteral);
         }
     }
@@ -846,24 +843,24 @@ mod tests {
     #[test]
     fn test_float_edge_cases() {
         let source = "0.0 00.00 .5 1.";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         // 0.0
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::FloatLiteral);
         // 00.00
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::FloatLiteral);
         // .5 - should be dot followed by integer (not a float in this implementation)
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
         // 1. - should be integer followed by dot
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Dot);
     }
 
     #[test]
     fn test_adjacent_tokens_no_whitespace() {
         let source = "(){},;";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         let expected = [
             TokenKind::LeftCircleBracket,
@@ -875,26 +872,23 @@ mod tests {
         ];
 
         for kind in expected {
-            assert_eq!(tokenizer.next().unwrap().kind, kind);
+            assert_eq!(lexer.next().unwrap().kind, kind);
         }
     }
 
     #[test]
     fn test_operator_disambiguation() {
         let source = "< <= << <<=";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::LeftAngleBracket);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::LeftAngleBracket);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::LeftAngleBracketEqual);
         assert_eq!(
-            tokenizer.next().unwrap().kind,
-            TokenKind::LeftAngleBracketEqual
-        );
-        assert_eq!(
-            tokenizer.next().unwrap().kind,
+            lexer.next().unwrap().kind,
             TokenKind::LeftAngleBracketLeftAngleBracket
         );
         assert_eq!(
-            tokenizer.next().unwrap().kind,
+            lexer.next().unwrap().kind,
             TokenKind::LeftAngleBracketLeftAngleBracketEqual
         );
     }
@@ -902,28 +896,28 @@ mod tests {
     #[test]
     fn test_ellipsis_variations() {
         let source = ". .. ... ..= ...=";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Ellipsis);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Ellipsis);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EllipsisEqual);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Ellipsis);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Dot);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Equal);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Ellipsis);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Ellipsis);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EllipsisEqual);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Ellipsis);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Dot);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Equal);
     }
 
     #[test]
     fn test_char_with_quote_escape() {
         let source = "'\\'' '\\\"'";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        let token1 = tokenizer.next().unwrap();
+        let token1 = lexer.next().unwrap();
         assert_eq!(token1.kind, TokenKind::CharLiteral);
         assert_eq!(token1.lexeme(source), "'\\''");
 
-        let token2 = tokenizer.next().unwrap();
+        let token2 = lexer.next().unwrap();
         assert_eq!(token2.kind, TokenKind::CharLiteral);
         assert_eq!(token2.lexeme(source), "'\\\"'");
     }
@@ -931,44 +925,44 @@ mod tests {
     #[test]
     fn test_unterminated_char_at_eof() {
         let source = "'";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::UnterminatedChar));
     }
 
     #[test]
     fn test_unterminated_escape_at_eof() {
         let source = r"'\";
-        let mut tokenizer = Tokenizer::new(source);
-        assert_eq!(tokenizer.next(), Err(TokenizerError::UnterminatedChar));
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.next(), Err(LexerError::UnterminatedChar));
     }
 
     #[test]
     fn test_span_accuracy() {
         let source = "hello world";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        let token1 = tokenizer.next().unwrap();
+        let token1 = lexer.next().unwrap();
         assert_eq!(token1.lexeme(source), "hello");
 
-        let token2 = tokenizer.next().unwrap();
+        let token2 = lexer.next().unwrap();
         assert_eq!(token2.lexeme(source), "world");
     }
 
     #[test]
     fn test_multiple_consecutive_operators() {
         let source = "==>>>===";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EqualEqual);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EqualEqual);
         assert_eq!(
-            tokenizer.next().unwrap().kind,
+            lexer.next().unwrap().kind,
             TokenKind::RightAngleBracketRightAngleBracket
         );
         assert_eq!(
-            tokenizer.next().unwrap().kind,
+            lexer.next().unwrap().kind,
             TokenKind::RightAngleBracketEqual
         );
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EqualEqual);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EqualEqual);
     }
 
     #[test]
@@ -977,43 +971,40 @@ mod tests {
 
         for &c in &unrecognized_chars {
             let source = c.to_string();
-            let mut tokenizer = Tokenizer::new(&source);
-            assert_eq!(
-                tokenizer.next(),
-                Err(TokenizerError::UnrecognizedCharacter(c))
-            );
+            let mut lexer = Lexer::new(&source);
+            assert_eq!(lexer.next(), Err(LexerError::UnrecognizedCharacter(c)));
         }
     }
 
     #[test]
     fn test_bom_with_following_content() {
         let source = "\u{FEFF}var x = 42;";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
         // BOM should be skipped, first token should be 'var'
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Identifier);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Equal);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Identifier);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Equal);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Semicolon);
     }
 
     #[test]
     fn test_long_number_sequences() {
         let source = "123456789 987654321.123456789";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::FloatLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::FloatLiteral);
     }
 
     #[test]
     fn test_comment_after_various_tokens() {
         let source = "var // comment\n42 // another comment\n";
-        let mut tokenizer = Tokenizer::new(source);
+        let mut lexer = Lexer::new(source);
 
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::Var);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::IntegerLiteral);
-        assert_eq!(tokenizer.next().unwrap().kind, TokenKind::EOF);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::Var);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::IntegerLiteral);
+        assert_eq!(lexer.next().unwrap().kind, TokenKind::EOF);
     }
 }

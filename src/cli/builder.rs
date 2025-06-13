@@ -5,6 +5,6 @@ use std::path::Path;
 
 pub fn build(p: &Path) -> Result<(), Box<dyn Error>> {
     let source = fs::read_to_string(&p)?;
-    let tokenizer = front_end::tokenizer::Tokenizer::new(&source);
+    let lexer = front_end::lexer::Lexer::new(&source);
     Ok(())
 }

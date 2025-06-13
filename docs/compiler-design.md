@@ -1,11 +1,9 @@
 # Compiler Design
 
-## Front end
+## Lexer and Tokens
 
-### Tokenizer
+## Parser and Abstract Syntax Tree
 
-### Abstract Syntax Tree and Parser
+## Type Checker and Annotated AST
 
-### Semantic Analyzer
-
-## Back end
+## LLVM

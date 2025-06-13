@@ -1,7 +1,7 @@
 <div align="center">
   <img width="200px" src="docs/crawfish.png">
   <h1>crawfish</h1>
-  <p>Simple programming language for the layman.</p>
+  <p>simple programming language for the layman</p>
 </div>
 
 ## Installation (building from source)
@@ -40,4 +40,5 @@ export PATH=$PATH:<path to the crawfish compiler executable>
 
 ## Credits
 
-Many thanks to the creators of the resources that I used.
+Many thanks to the creators of the resources that I used. There are far too many resources that I used to list (since I scour through a tons of resources to find the "conventional" way of structuring my compiler, even down to the struct names...), but some notable ones include:
+

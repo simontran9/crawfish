@@ -1,4 +1,8 @@
+// syntactic analysis
 pub mod ast;
 pub mod parser;
+// lexical analysis
+pub mod lexer;
 pub mod token;
-pub mod tokenizer;
+// semantic analysis
+pub mod type_checker;
